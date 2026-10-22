@@ -1,0 +1,49 @@
+name: Driver baseline
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'drivers/**'
+      - '.github/workflows/driver-baseline.yml'
+  pull_request:
+    paths:
+      - 'drivers/**'
+      - '.github/workflows/driver-baseline.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sysvad:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read locked source version
+        id: lock
+        shell: pwsh
+        run: |
+          $lock = Get-Content drivers/upstream.lock.json -Raw | ConvertFrom-Json
+          "commit=$($lock.commit)" >> $env:GITHUB_OUTPUT
+      - name: Fetch Microsoft baseline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: microsoft/Windows-driver-samples
+          ref: ${{ steps.lock.outputs.commit }}
+          path: .driver-source
+          submodules: recursive
+          persist-credentials: false
+      - name: Build unsigned baseline with locked NuGet kits
+        shell: pwsh
+        run: ./drivers/build.ps1
+      - name: Save binaries and diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sysvad-baseline-x64
+          path: driver-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
