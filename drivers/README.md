@@ -13,6 +13,9 @@ Upstream MS-PL licensing remains applicable and is copied alongside artifacts.
 
 `.github/workflows/driver-baseline.yml` uses `windows-2025-vs2026` and restores
 SDK/WDK from NuGet. A system-wide WDK installation is not required. It builds the
+solution with x64 MSBuild so WDK selects the native x64 StampInf/API validator
+tools supplied by the x64 NuGet kit (the x86 kit has only a subset of tools).
+It builds the
 full SysVAD solution, saves MSBuild text/binary logs, and uploads binaries plus a
 manifest containing versions and file hashes. It does not install a driver,
 reboot a runner, change boot security settings, or use release signing keys.

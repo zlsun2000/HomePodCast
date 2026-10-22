@@ -32,8 +32,8 @@ Invoke-Checked $nuget @('restore', (Join-Path $PSScriptRoot 'packages.x64.config
 if ($RestoreOnly) { return }
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-$msbuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe'
-if ($LASTEXITCODE -ne 0 -or -not $msbuild) { throw 'Visual Studio MSBuild not found' }
+$msbuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\amd64\MSBuild.exe'
+if ($LASTEXITCODE -ne 0 -or -not $msbuild) { throw 'Visual Studio x64 MSBuild not found' }
 $msbuild = @($msbuild)[0]
 New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
 $OutputRoot = (Resolve-Path $OutputRoot).Path
