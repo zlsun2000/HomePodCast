@@ -3,7 +3,8 @@
 This is the first bring-up milestone for the integrated audio driver. It builds
 the **unmodified Microsoft SysVAD sample**, not a working HomePodCast Audio driver.
 SysVAD still generates capture test tones; the real PCM bridge is not implemented.
-Artifacts are unsigned development outputs, not ready-to-install production packages.
+Baseline artifacts are unsigned. Prototype artifacts use a temporary development
+test certificate; neither is a production package.
 
 `upstream.lock.json` pins the source commit, WIL submodule and SDK/WDK package
 versions. `packages.x64.config` restores only the x64 kits needed by this build.
@@ -61,7 +62,7 @@ MS-PL license. It overlays HomePodCast-owned endpoint tables and an INF with a
 distinct `Root\HomePodCastAudio` hardware ID, service, binary and catalog name.
 The baseline checkout is never patched. CI builds baseline and prototype as
 separate jobs and uploads distinct artifacts. This is a development prototype,
-not a signed release; its initial INF targets Windows 11 build 22621 or later.
+not a production-signed release; its initial INF targets Windows 11 build 22621 or later.
 
 There is one render stream pin and an analog bridge pin, with no hardware audio
 engine node, hardware loopback pin, offload, microphone, APO or sideband device.
@@ -99,3 +100,44 @@ and reports failure if capture, channel separation, volume scaling or restoratio
 fails. It does not change default output or send anything over AirPlay. Keep this
 report separate from compiler success; a synthetic analysis unit test is not a
 runtime pass. Windows endpoint absence should fail, not fall back to speakers.
+
+## Test package signing and VM installation
+
+The prototype CI job passes `-TestSign`. This path is restricted to ephemeral
+GitHub-hosted runners: it creates a non-exportable RSA test key, embeds a SHA256
+signature in the SYS, generates a catalog with Inf2Cat for Windows 11 22H2/24H2,
+and signs the catalog. It temporarily trusts its public certificate on that
+runner to verify signatures and catalog membership, then removes the certificate
+and private key. Only the public CER, SYS, INF, CAT and verification metadata
+enter `test-package/`. This proves package integrity, not runtime correctness or
+Microsoft production kernel-signing eligibility. Every run creates a new test
+certificate. No production signing account or reusable private key is involved.
+
+Use only the isolated Windows VM for this package:
+
+1. Install Windows 11 x64 in the VM and take a clean snapshot. Keep the host's
+   boot settings and certificate stores unchanged.
+2. In the **guest's** elevated terminal, trust the artifact's public certificate
+   and enable guest test mode, then restart the guest:
+
+   ```powershell
+   certutil -addstore -f Root .\test-package\HomePodCast-Development.cer
+   certutil -addstore -f TrustedPublisher .\test-package\HomePodCast-Development.cer
+   bcdedit /set testsigning on
+   ```
+
+   If guest Secure Boot prevents test mode, adjust only the VM's Secure Boot
+   configuration. This build does not disable host Secure Boot or memory integrity.
+3. In guest Device Manager, choose Action > Add legacy hardware > select hardware
+   manually > Show all devices > Have Disk, and select
+   `test-package/HomePodCastAudio.inf`. The root device should create exactly one
+   `HomePodCast Audio` playback endpoint and no microphones. Record any error code.
+4. Run the probe above in the guest. Then validate ordinary applications, multiple
+   clients, stop/restart and sleep separately; passing the probe is only the first
+   audio gate. HomePod streaming/discovery is a separate network test.
+5. Uninstall the device and its driver package in guest Device Manager; record the
+   published `oem*.inf` before deleting a package. Remove this run's certificate
+   from guest Root/TrustedPublisher using the thumbprint in `test-signing.json`,
+   disable guest test mode and restart, or revert to the clean snapshot.
+
+Reference: [Microsoft test-signing a driver file](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/test-signing-a-driver-file).

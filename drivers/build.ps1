@@ -3,9 +3,11 @@ param(
     [string]$SourceRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) '.driver-source'),
     [string]$OutputRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) 'driver-artifacts'),
     [switch]$RestoreOnly,
-    [switch]$Prototype
+    [switch]$Prototype,
+    [switch]$TestSign
 )
 $ErrorActionPreference = 'Stop'
+if ($TestSign -and -not $Prototype) { throw 'TestSign is only supported for the isolated prototype.' }
 $lock = Get-Content (Join-Path $PSScriptRoot 'upstream.lock.json') -Raw | ConvertFrom-Json
 function Invoke-Checked([string]$Program, [string[]]$Arguments) {
     & $Program @Arguments
@@ -72,6 +74,13 @@ Invoke-Checked $msbuild @($target, '/m', '/t:Build',
 }
 $binaries = @(Get-ChildItem (Join-Path $buildRoot 'audio/sysvad') -Filter '*.sys' -Recurse)
 if (-not $binaries) { throw 'MSBuild completed but no driver binary was produced' }
+if ($TestSign) {
+    if ($binaries.Count -ne 1) { throw 'Expected exactly one prototype binary' }
+    $inf = Join-Path $buildRoot "audio/sysvad/TabletAudioSample/x64/$Configuration/HomePodCastAudio.inf"
+    & (Join-Path $PSScriptRoot 'sign_test_package.ps1') -Binary $binaries[0].FullName -Inf $inf `
+        -PackageRoot (Join-Path $OutputRoot 'test-package') -Packages $packages -KitVersion $lock.kitVersion
+    $manifest.signing = 'ephemeral-development-test'
+}
 foreach ($file in $binaries) {
     $relative = [IO.Path]::GetRelativePath($buildRoot, $file.FullName)
     $destination = Join-Path $OutputRoot $relative
@@ -92,6 +101,6 @@ if ($Prototype) {
     Copy-Item (Join-Path $PSScriptRoot 'probe-requirements.txt') $OutputRoot
 }
 $manifest.buildSucceeded = $true
-$manifest.files = @(Get-ChildItem $OutputRoot -Recurse -File | Where-Object Extension -In '.sys','.inf','.cat','.dll' |
+$manifest.files = @(Get-ChildItem $OutputRoot -Recurse -File | Where-Object Extension -In '.sys','.inf','.cat','.dll','.cer' |
     ForEach-Object { @{ path = [IO.Path]::GetRelativePath($OutputRoot, $_.FullName); sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash } })
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath -Encoding utf8
