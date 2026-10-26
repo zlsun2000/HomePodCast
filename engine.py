@@ -23,6 +23,7 @@ import time
 import warnings
 
 import numpy as np
+import soundcard as sc
 import pyatv
 from pyatv.const import Protocol
 from pyatv.protocols.airplay.auth import extract_credentials
@@ -254,8 +255,12 @@ def list_sources():
     """Return (id, name, channels) of all output devices, default first."""
     import soundcard as sc
 
-    default = sc.default_speaker()
-    speakers = [default] + [s for s in sc.all_speakers() if s.id != default.id]
+    speakers = sc.all_speakers()
+    try:
+        default_id = sc.default_speaker().id
+    except Exception:
+        default_id = None
+    speakers.sort(key=lambda s: s.id != default_id)
     return [(s.id, s.name, s.channels) for s in speakers]
 
 
@@ -268,6 +273,7 @@ class Capture(threading.Thread):
         self.ring = Ring(channels)
         self.channels = channels
         self.error = None
+        self.ready = threading.Event()
         self._stop_event = threading.Event()
 
     def run(self):
@@ -277,12 +283,16 @@ class Capture(threading.Thread):
 
             warnings.simplefilter("ignore", sc.SoundcardRuntimeWarning)
             mic = sc.get_microphone(self.source_id, include_loopback=True)
+            if mic.id != self.source_id:
+                raise RuntimeError("Capture endpoint no longer available")
             with mic.recorder(RATE, channels=self.channels, blocksize=RATE // 100) as rec:
+                self.ready.set()
                 while not self._stop_event.is_set():
                     self.ring.write(rec.record(numframes=None))
         except Exception as ex:  # pylint: disable=broad-except
             self.error = ex
         finally:
+            self.ready.set()
             ctypes.windll.ole32.CoUninitialize()
 
     def stop(self):
@@ -553,6 +563,9 @@ class Engine:
         self.volume = None  # percent, once it has been set for this stream
         self.reconnect = True
         self._task = None
+        self._starting = None
+        self.routing_error = None
+        self.restore_on_disconnect = False
         self._rejoins = {}  # output index -> task reconnecting that receiver
 
     def _run_loop(self):
@@ -571,22 +584,49 @@ class Engine:
         return self._submit(self._scan(timeout))
 
     def start(self, confs, mode: str, source_id: str, src_channels: int, buffer_ms=None,
-              reconnect: bool = True):
+              reconnect: bool = True, route_options=None):
         """Start streaming. confs are ordered like MODES[mode].
 
         buffer_ms is the network buffer; None lets the engine tune it. Without
         reconnect the stream ends as soon as one receiver is lost.
         """
         return self._submit(
-            self._start(confs, mode, source_id, src_channels, buffer_ms, reconnect)
+            self._start(confs, mode, source_id, src_channels, buffer_ms, reconnect, route_options)
         )
 
     def stop(self):
-        return self._submit(self._stop())
+        return self._submit(self._request_stop())
 
-    def identify(self, conf):
+    async def _request_stop(self):
+        starting = self._starting
+        if starting and starting is not asyncio.current_task():
+            starting.cancel()
+            await asyncio.gather(starting, return_exceptions=True)
+        await self._stop()
+
+    def identify(self, conf, mute_source_id=None):
         """Play a short test sound on one receiver, streaming or not."""
-        return self._submit(self._identify(conf))
+        return self._submit(self._identify(conf, mute_source_id))
+
+    def recover_output(self, journal_path):
+        return self._submit(self._recover_output(journal_path))
+
+    async def _recover_output(self, journal_path):
+        if self.state != "idle" or self._starting:
+            raise RuntimeError("Stop streaming before recovering output")
+        from windows_audio import WindowsAudio
+        from audio_session import OutputRouting, RoutingJournal
+
+        backend = WindowsAudio()
+        try:
+            route = OutputRouting(backend, RoutingJournal(journal_path))
+            route.load_recovery()
+            failures = route.restore()
+            if failures:
+                raise RuntimeError("; ".join(failures))
+            self.routing_error = None
+        finally:
+            backend.close()
 
     def set_volume(self, percent: float):
         return self._submit(self._set_volume(percent))
@@ -596,6 +636,7 @@ class Engine:
         return {
             "state": self.state,
             "error": self.error,
+            "routing_error": self.routing_error,
             "level": self.level,
             "underruns": self.underruns,
             "elapsed": time.monotonic() - self.started_at,
@@ -624,7 +665,38 @@ class Engine:
         confs = [c for c in confs if c.get_service(Protocol.RAOP)]
         return sorted(confs, key=lambda c: c.name)
 
-    async def _start(self, confs, mode, source_id, src_channels, buffer_ms, reconnect):
+    async def _start(self, confs, mode, source_id, src_channels, buffer_ms, reconnect,
+                     route_options=None):
+        if self.state != "idle" or self._starting is not None:
+            raise RuntimeError("already running")
+        self._starting = asyncio.current_task()
+        self.routing_error = None
+        self.restore_on_disconnect = bool(route_options and route_options.get("restore_on_disconnect"))
+        try:
+            if route_options:
+                from windows_audio import WindowsAudio
+                from audio_session import OutputRouting, RoutingJournal
+
+                backend = WindowsAudio()
+                self.routing = OutputRouting(backend, RoutingJournal(route_options["journal_path"]))
+                self.routing.prepare(source_id, route_options.get("communications", False))
+            await self._start_stream(confs, mode, source_id, src_channels, buffer_ms, reconnect)
+            if route_options:
+                deadline = time.monotonic() + 5
+                while not all(self.timing.requests.get(o.address, 0) for o in self.outputs):
+                    if self.state != "streaming" or time.monotonic() > deadline:
+                        raise RuntimeError("Receiver timing not ready for output switching")
+                    await asyncio.sleep(.05)
+                self.routing.activate()
+                if self.capture:
+                    self.capture.ring.drop(self.capture.ring.n)
+        except BaseException:
+            await self._stop()
+            raise
+        finally:
+            self._starting = None
+
+    async def _start_stream(self, confs, mode, source_id, src_channels, buffer_ms, reconnect):
         if self.state != "idle":
             raise RuntimeError("already running")
         self.state, self.error = "connecting", None
@@ -635,7 +707,18 @@ class Engine:
         self.outputs = [Output(conf, self.clock) for conf in confs]
         try:
             await asyncio.gather(*(o.connect(self.timing.port) for o in self.outputs))
+            if source_id is not None:
+                self.capture = Capture(source_id, src_channels)
+                self.capture.start()
+                if not await asyncio.to_thread(self.capture.ready.wait, 5):
+                    raise RuntimeError("Audio capture initialization timed out")
+                if self.capture.error:
+                    raise RuntimeError("capture", str(self.capture.error))
         except BaseException:
+            if self.capture:
+                self.capture.stop()
+                await asyncio.to_thread(self.capture.join, 1)
+                self.capture = None
             await self._close_outputs()
             self.state = "idle"
             raise
@@ -649,9 +732,6 @@ class Engine:
         self.send_late = Window(STATS_WINDOW)
 
         self.inject = {}
-        if source_id is not None:
-            self.capture = Capture(source_id, src_channels)
-            self.capture.start()
         self.pinger = Pinger([o.address for o in self.outputs])
         self.pinger.start()
         self.started_at = time.monotonic()
@@ -665,12 +745,27 @@ class Engine:
         if task:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+        routing = getattr(self, "routing", None)
+        if routing:
+            try:
+                failures = routing.restore()
+                if failures:
+                    self.routing_error = "; ".join(failures)
+            except Exception as exc:
+                self.routing_error = str(exc)
+            finally:
+                try:
+                    routing.backend.close()
+                except Exception as exc:
+                    self.routing_error = self.routing_error or str(exc)
+                self.routing = None
         rejoins, self._rejoins = list(self._rejoins.values()), {}
         for rejoin in rejoins:
             rejoin.cancel()
         await asyncio.gather(*rejoins, return_exceptions=True)
         if self.capture:
             self.capture.stop()
+            await asyncio.to_thread(self.capture.join, 1)
             self.capture = None
         if self.pinger:
             self.pinger.stop()
@@ -679,7 +774,16 @@ class Engine:
         self.level = 0.0
         self.state = "idle"
 
-    async def _identify(self, conf):
+    async def _identify(self, conf, mute_source_id=None):
+        if mute_source_id:
+            from windows_audio import WindowsAudio
+
+            backend = WindowsAudio()
+            try:
+                if backend.muted(mute_source_id):
+                    raise RuntimeError("Virtual output is muted; unmute it before playing a test sound")
+            finally:
+                backend.close()
         address = str(conf.address)
         if self.state == "streaming" and not self.testing:
             # Already streaming: mix the sound into that speaker's channel
@@ -795,6 +899,7 @@ class Engine:
         late_max = 0
         seconds = 0
         next_second = time.monotonic() + 1.0
+        offline_since = None
 
         try:
             while True:
@@ -890,6 +995,17 @@ class Engine:
 
                 now = time.monotonic()
                 if now >= next_second:
+                    routing = getattr(self, "routing", None)
+                    if routing:
+                        routing.observe()
+                        if not routing.backend.available(routing.state["target"]):
+                            raise RuntimeError("capture", "Virtual output endpoint removed")
+                    if self.restore_on_disconnect and outputs and not any(o.online for o in outputs):
+                        offline_since = now if offline_since is None else offline_since
+                        if now - offline_since >= 10:
+                            raise ConnectionError("disconnected", "All receivers")
+                    else:
+                        offline_since = None
                     next_second = now + 1.0
                     seconds += 1
                     self.send_late.add(late_max * 1000 / RATE)

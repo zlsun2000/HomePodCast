@@ -18,14 +18,15 @@ import winreg
 import customtkinter as ctk
 
 import engine as eng
+from audio_sources import available_sources, source_labels
 import tray
 
 APP_NAME = "HomePod Cast"
 VERSION = "1.2.1"
 CONFIG_PATH = os.path.join(os.environ.get("APPDATA", "."), "HomePodCast", "config.json")
-RELEASES = "https://github.com/GeoAtom/HomePodCast/releases/latest"
-DOWNLOADS = "https://github.com/GeoAtom/HomePodCast/releases/download/"
-LATEST_API = "https://api.github.com/repos/GeoAtom/HomePodCast/releases/latest"
+RELEASES = "https://github.com/zlsun2000/HomePodCast/releases/latest"
+DOWNLOADS = "https://github.com/zlsun2000/HomePodCast/releases/download/"
+LATEST_API = "https://api.github.com/repos/zlsun2000/HomePodCast/releases/latest"
 
 # Where Windows keeps the programs it starts at sign-in
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -75,6 +76,18 @@ STRINGS = {
         "stop": "停止",
         "settings": "设置",
         "source": "音源",
+        "audio_mode": "音源模式",
+        "physical_mode": "现有输出设备",
+        "virtual_mode": "虚拟音频输出",
+        "refresh_source": "刷新音源",
+        "source_missing": "音源不可用，请刷新并选择设备",
+        "auto_output": "串流就绪后自动切换输出，停止时恢复",
+        "restore_disconnect": "全部音箱掉线 10 秒后停止并恢复输出",
+        "switch_communications": "同时切换通信应用输出",
+        "cable_help": "VB-CABLE 安装与配置",
+        "cable_volume_hint": "在 VB-CABLE 控制面板启用 Enable Windows Volume Control；关闭“侦听此设备”。",
+        "recover_output": "恢复上次异常退出前的输出",
+        "output_recovered": "输出设备恢复完成",
         "source_item": "{name}（{channels} 声道）",
         "buffer": "缓冲",
         "auto": "自动",
@@ -132,6 +145,18 @@ STRINGS = {
         "stop": "Stop",
         "settings": "Settings",
         "source": "Source",
+        "audio_mode": "Source mode",
+        "physical_mode": "Existing output device",
+        "virtual_mode": "Virtual audio output",
+        "refresh_source": "Refresh sources",
+        "source_missing": "Source unavailable; refresh and choose a device",
+        "auto_output": "Switch output when ready; restore on stop",
+        "restore_disconnect": "Stop and restore after all receivers are offline for 10 s",
+        "switch_communications": "Also switch communications output",
+        "cable_help": "VB-CABLE installation and setup",
+        "cable_volume_hint": "Enable Windows Volume Control in the VB-CABLE panel. Keep recording-device monitoring disabled.",
+        "recover_output": "Recover output from previous session",
+        "output_recovered": "Output recovery completed",
         "source_item": "{name} ({channels} ch)",
         "buffer": "Buffer",
         "auto": "Auto",
@@ -328,7 +353,21 @@ class App:
         if self.lang not in STRINGS:
             self.lang = system_language()
         self.engine = eng.Engine()
-        self.sources = eng.list_sources()
+        self.audio_monitor = None
+        try:
+            from windows_audio import WindowsAudio
+
+            self.audio_monitor = WindowsAudio()
+        except Exception:
+            pass  # Manual refresh remains available if notifications cannot be registered.
+        self.auto_switch_output = self.config.get("auto_switch_output") is True
+        self.restore_on_disconnect = self.config.get("restore_on_disconnect") is True
+        self.switch_communications = self.config.get("switch_communications") is True
+        self.audio_mode = self.config.get("audio_mode", "physical")
+        if self.audio_mode not in ("physical", "virtual"):
+            self.audio_mode = "physical"
+        self.sources = available_sources(eng.list_sources(), self.audio_mode,
+                                         self.config.get("source"), self.tr("source_missing"))
         self.confs = {}  # menu label -> device configuration
         self.pending = []  # (future, callback) resolved on the GUI thread
         self.running = False  # start requested
@@ -408,7 +447,9 @@ class App:
         self.bold = ctk.CTkFont(family, 14, "bold")
         self.symbol = ctk.CTkFont("Segoe UI Symbol", 15)
 
-        self.body = body = ctk.CTkFrame(self.root, fg_color="transparent")
+        available_height = max(160, (self.root.winfo_screenheight() - 240) / self.root._get_window_scaling())
+        self.body = body = ctk.CTkScrollableFrame(self.root, fg_color="transparent", width=WIDTH,
+                                                height=min(620, available_height))
         body.pack(padx=PAD, pady=(PAD, 12))
 
         top = ctk.CTkFrame(body, fg_color="transparent")
@@ -471,14 +512,39 @@ class App:
         self.settings_button.pack()
         self.settings = ctk.CTkFrame(body, fg_color="transparent")
 
+        row = self.setting_row(self.tr("audio_mode"))
+        self.audio_mode_box = self.menu(row, [self.tr("physical_mode"), self.tr("virtual_mode")],
+                                        self.set_audio_mode, WIDTH - LABEL)
+        self.audio_mode_box.set(self.tr("virtual_mode" if self.audio_mode == "virtual" else "physical_mode"))
+        self.audio_mode_box.pack(side="left")
         row = self.setting_row(self.tr("source"))
-        self.source_labels = [
-            self.tr("source_item", name=name, channels=channels)
-            for _, name, channels in self.sources
-        ]
+        self.source_labels = source_labels(self.sources,
+            lambda name, channels: self.tr("source_item", name=name, channels=channels))
         self.source_box = self.menu(row, self.source_labels, self.set_source, WIDTH - LABEL)
         self.source_box.set(self.source_labels[self.source_index])
         self.source_box.pack(side="left")
+        self.refresh_source_button = ctk.CTkButton(self.settings, text=self.tr("refresh_source"),
+                                                  command=self.refresh_sources)
+        self.refresh_source_button.pack(pady=4)
+        ctk.CTkButton(self.settings, text=self.tr("cable_help"),
+                      command=lambda: webbrowser.open("https://vb-audio.com/Cable/index.htm")).pack(pady=4)
+        ctk.CTkLabel(self.settings, text=self.tr("cable_volume_hint"), font=self.small,
+                     text_color=MUTED, wraplength=WIDTH - 20).pack(pady=4)
+        self.auto_output_box = self.switch(self.settings, self.tr("auto_output"),
+                                           self.auto_switch_output,
+                                           self.set_auto_output)
+        self.auto_output_box.pack(pady=4)
+        self.restore_disconnect_box = self.switch(self.settings, self.tr("restore_disconnect"),
+                                                  self.restore_on_disconnect,
+                                                  lambda value: setattr(self, "restore_on_disconnect", value))
+        self.restore_disconnect_box.pack(pady=4)
+        self.communications_box = self.switch(self.settings, self.tr("switch_communications"),
+                                               self.switch_communications,
+                                               lambda value: setattr(self, "switch_communications", value))
+        self.communications_box.pack(pady=4)
+        self.recover_output_button = ctk.CTkButton(self.settings, text=self.tr("recover_output"),
+                                                  command=self.recover_output)
+        self.recover_output_button.pack(pady=4)
 
         row = self.setting_row(self.tr("buffer"))
         self.buffer_labels = [self.tr("auto") if ms is None else f"{ms} ms" for ms in BUFFERS]
@@ -651,6 +717,11 @@ class App:
     def set_controls(self, enabled: bool):
         state = "normal" if enabled else "disabled"
         for widget in [*self.role_boxes.values(), self.source_box, self.buffer_box,
+                       self.audio_mode_box, self.refresh_source_button,
+                       self.auto_output_box,
+                       self.restore_disconnect_box,
+                       self.communications_box,
+                       self.recover_output_button,
                        self.reconnect_box, self.mode_box, self.language_box,
                        self.scan_button]:
             widget.configure(state=state)
@@ -659,6 +730,10 @@ class App:
             progress_color=GREEN if enabled else MUTED,
             button_color=KNOB if enabled else FIELD,
         )
+        virtual = enabled and self.audio_mode == "virtual"
+        self.auto_output_box.configure(state="normal" if virtual else "disabled")
+        for widget in (self.restore_disconnect_box, self.communications_box):
+            widget.configure(state="normal" if virtual and self.auto_switch_output else "disabled")
         # The volume belongs to the stream: live while streaming, dimmed otherwise
         self.volume_scale.configure(
             state="disabled" if enabled else "normal",
@@ -674,6 +749,12 @@ class App:
             if var.get() in self.confs:
                 roles[role] = self.confs[var.get()].identifier
         self.config = {
+            **self.config,
+            "schema_version": 2,
+            "audio_mode": self.audio_mode,
+            "auto_switch_output": self.auto_switch_output,
+            "restore_on_disconnect": self.restore_on_disconnect,
+            "switch_communications": self.switch_communications,
             "language": self.lang,
             "mode": self.mode,
             "source": self.sources[self.source_index][0],
@@ -695,8 +776,46 @@ class App:
         self.source_index = self.source_labels.index(label)
         self.set_status(*self.status_text)
 
+    def set_audio_mode(self, label):
+        previous = self.audio_mode
+        self.audio_mode = "virtual" if label == self.tr("virtual_mode") else "physical"
+        if not self.refresh_sources(preserve=False):
+            self.audio_mode = previous
+            self.audio_mode_box.set(self.tr("virtual_mode" if previous == "virtual" else "physical_mode"))
+        self.set_controls(not self.running)
+
+    def set_auto_output(self, enabled):
+        self.auto_switch_output = enabled
+        self.set_controls(not self.running)
+
+    def refresh_sources(self, preserve=True):
+        saved_id = self.sources[self.source_index][0] if preserve else None
+        try:
+            sources = eng.list_sources()
+        except Exception as exc:
+            self.set_status("source_missing", extra=f"\n{exc}")
+            return False
+        self.sources = available_sources(sources, self.audio_mode, saved_id, self.tr("source_missing"))
+        self.source_index = next((i for i, s in enumerate(self.sources) if s[0] == saved_id), 0)
+        self.source_labels = source_labels(self.sources,
+            lambda name, channels: self.tr("source_item", name=name, channels=channels))
+        self.source_box.configure(values=self.source_labels)
+        self.source_box.set(self.source_labels[self.source_index])
+        self.set_status(*self.status_text)
+        return True
+
     def set_buffer(self, label):
         self.buffer = BUFFERS[self.buffer_labels.index(label)]
+
+    def recover_output(self):
+        path = os.path.join(os.path.dirname(CONFIG_PATH), "routing-state.json")
+        self.recover_output_button.configure(state="disabled")
+        self.pending.append((self.engine.recover_output(path), self.output_recovered))
+
+    def output_recovered(self, _, error):
+        self.recover_output_button.configure(state="normal")
+        self.set_status("source_missing" if error else "output_recovered",
+                        extra=f"\n{error}" if error else "")
 
     def set_reconnect(self, enabled):
         self.reconnect = enabled
@@ -830,7 +949,8 @@ class App:
                 button.configure(state="disabled")
             self.role_dots[role].configure(text_color=AMBER)
             self.set_status("testing", {"name": conf.name})
-        self.pending.append((self.engine.identify(conf), self.tested))
+        mute_source = self.sources[self.source_index][0] if self.audio_mode == "virtual" else None
+        self.pending.append((self.engine.identify(conf, mute_source), self.tested))
 
     def tested(self, _, error):
         if self.streaming or not self.testing:
@@ -861,9 +981,14 @@ class App:
             self.set_status("no_duplicates")
             return
 
+        if not self.refresh_sources():
+            return
+        source_id, _, channels = self.sources[self.source_index]
+        if source_id is None or channels <= 0:
+            self.set_status("source_missing")
+            return
         self.remember()
         save_config(self.config)
-        source_id, _, channels = self.sources[self.source_index]
         confs = [self.confs[label] for label in chosen]
 
         self.running = True
@@ -874,7 +999,11 @@ class App:
         for dot in self.role_dots.values():
             dot.configure(text_color=AMBER)
         future = self.engine.start(
-            confs, self.mode, source_id, channels, self.buffer, self.reconnect
+            confs, self.mode, source_id, channels, self.buffer, self.reconnect,
+            route_options={"journal_path": os.path.join(os.path.dirname(CONFIG_PATH), "routing-state.json"),
+                           "restore_on_disconnect": self.restore_on_disconnect,
+                           "communications": self.switch_communications}
+            if self.audio_mode == "virtual" and self.auto_switch_output else None,
         )
         self.pending.append((future, self.started))
 
@@ -893,6 +1022,9 @@ class App:
         )
 
     def stopped(self, key: str, values: dict = None, extra: str = ""):
+        routing_error = self.engine.status().get("routing_error")
+        if routing_error:
+            extra += "\n" + routing_error
         self.running = self.streaming = False
         self.set_controls(True)
         self.start_button.configure(
@@ -936,18 +1068,24 @@ class App:
     def stop_now(self):
         """End the stream and wait for it, so the speakers are let go."""
         try:
-            self.engine.stop().result(3)
+            self.engine.stop().result(8)
         except Exception:  # pylint: disable=broad-except
             pass
 
     def quit(self):
         self.stop_now()
+        if self.audio_monitor:
+            self.audio_monitor.close()
         self.tray.close()
         self.root.destroy()
 
     # --- periodic update --------------------------------------------------------
 
     def tick(self):
+        if (self.audio_monitor and self.audio_monitor.devices_changed.is_set()
+                and not self.running and not self.testing):
+            self.audio_monitor.devices_changed.clear()
+            self.refresh_sources()
         while not self.tray.clicks.empty():
             if self.tray.clicks.get() == "quit":
                 self.quit()
@@ -957,7 +1095,7 @@ class App:
         for item in [p for p in self.pending if p[0].done()]:
             self.pending.remove(item)
             future, callback = item
-            error = future.exception()
+            error = RuntimeError("Start cancelled") if future.cancelled() else future.exception()
             callback(None if error else future.result(), error)
 
         if self.replaced:
@@ -1006,6 +1144,10 @@ class App:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--self-test":
+        from runtime_check import run
+
+        raise SystemExit(run(sys.argv[2]))
     # A second copy would fight the first over the speakers: show that one instead
     if not tray.show_running():
         App().run()

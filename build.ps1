@@ -19,6 +19,16 @@ VSVersionInfo(
 )
 "@ | Set-Content -Encoding ascii $info
 
+$runtimeData = @()
+# Some managed Python runtimes load an adjacent certificate policy resource in
+# SSLContext.__new__. Preserve it in the bundle instead of changing TLS behavior.
+$certificatePolicy = python -c "import pathlib, ssl; print(pathlib.Path(ssl.__file__).with_name('codex-rejected-cas.pem'))"
+if (Test-Path -LiteralPath $certificatePolicy) {
+    $runtimeData += @('--add-data', ($certificatePolicy + ';.'))
+}
+
 pyinstaller --noconfirm --clean --onefile --windowed --name HomePodCast --icon icon.ico `
     --version-file $info `
+    @runtimeData `
     --collect-data soundcard --collect-data customtkinter --collect-submodules pyatv app.py
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }

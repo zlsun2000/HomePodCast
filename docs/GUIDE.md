@@ -1,5 +1,15 @@
 # HomePod Cast — Guide · 使用须知
 
+## Virtual cable preview · 虚拟声卡预览
+
+VB-CABLE 控制面板 Options 中须启用 **Enable Windows Volume Control**，才能让 Windows 音量/静音作用于目前测试的虚拟采集路径。Enable this option in the VB-CABLE control panel for Windows volume and mute to affect the tested loopback path.
+
+开发中的虚拟模式：安装 VB-CABLE 并重启后，在设置的“音源模式”选择“虚拟音频输出”，刷新音源并明确选择标准 `CABLE Input`。开启自动切换后，程序在串流就绪时切换普通默认输出，停止时按记录恢复；通信输出保持原设置。也可关闭自动切换，在 Windows 中手动选择同一个 CABLE Input。不要启用录音端“侦听此设备”。全部掉线后停止与恢复为另一个默认关闭的选项；10 秒从程序确认全部掉线后计时。异常退出后可使用设置中的恢复按钮，恢复仍受原设备可用性与用户后续选择限制。应用音量滑块控制 HomePod，Windows 音量控制虚拟端点；虚拟端点静音时拒绝测试音。
+
+Virtual mode preview: install VB-CABLE and reboot, select Virtual audio output and explicitly choose CABLE Input. Optional automatic routing switches normal default outputs after streaming is ready and conditionally restores them on stop; communication defaults remain unchanged. Manual routing is also available. Keep recording-device monitoring disabled. Optional all-receivers-offline recovery waits 10 seconds after loss is detected. Use the recovery button after an abnormal exit. Restoration respects device availability and subsequent user choices. The app slider controls HomePod volume; Windows volume controls the virtual endpoint. Muted virtual endpoints cannot play test sounds.
+
+`HomePodCast Audio` 自有驱动仍是开发原型，尚未完成虚拟机运行验证，不随应用自动安装。测试系统安装该原型后，虚拟输出列表也会列出它；现有音源仍按设备 ID 保留，不会自动替换 VB-CABLE。The own driver is an experimental prototype with pending VM runtime verification. It is not automatically installed; existing device selections are preserved by exact ID. See [driver development notes](../drivers/README.md).
+
 [← Back to README](../README.md) · [English](#english) · [中文](#中文) · [Privacy · 隐私](#privacy--隐私) · [Build from source](#build-from-source)
 
 ---
@@ -67,3 +77,4 @@ Releases are built by [GitHub Actions](../.github/workflows/build.yml), not on a
 ## Credits
 
 Built on [pyatv](https://github.com/postlund/pyatv), [SoundCard](https://github.com/bastibe/SoundCard) and [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter). Not affiliated with Apple; HomePod and AirPlay are trademarks of Apple Inc.
+
