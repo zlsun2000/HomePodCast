@@ -53,6 +53,23 @@ def prepare(source: Path, destination: Path) -> None:
     if len(matches) != 1:
         raise ValueError("Upstream data-file registry entry changed")
     adapter.write_text("".join(line for line in lines if line not in matches), encoding="utf-8")
+    # Upstream has eight sideband branches missing the conditional compilation
+    # guards used elsewhere. Guard them when building without Bluetooth/USB.
+    engine_node = sysvad / "EndpointsCommon/MiniportAudioEngineNode.cpp"
+    text = engine_node.read_text(encoding="utf-8-sig")
+    marker = "    if (IsSidebandDevice() && "
+    if text.count(marker) != 8:
+        raise ValueError("Upstream audio-engine sideband branches changed")
+    cursor = len(text)
+    for _ in range(8):
+        start = text.rfind(marker, 0, cursor)
+        end = text.index("\n    }", start) + len("\n    }")
+        if text[end:].startswith("\n    else"):
+            end += len("\n    else")
+        text = (text[:start] + "#if defined(SYSVAD_BTH_BYPASS) || defined(SYSVAD_USB_SIDEBAND)\n" +
+                text[start:end] + "\n#endif" + text[end:])
+        cursor = start
+    engine_node.write_text(text, encoding="utf-8")
     resource = tablet / "TabletAudioSample.rc"
     text = resource.read_text(encoding="utf-8-sig")
     text = text.replace("Microsoft Virtual Audio Tablet Sample Driver", "HomePodCast Audio Prototype")
