@@ -84,3 +84,18 @@ the alternative is a bounded, independently reviewed render/capture bridge.
 checks that it does not change baseline tracked files. New overlay files are
 MIT-licensed; upstream source and notices remain MS-PL. No binary is installed
 and no boot-security settings are changed by this build.
+
+After installing a test-signed package **inside the VM**, install the probe
+dependencies with `python -m pip install -r probe-requirements.txt`, then run:
+
+```powershell
+python probe_endpoint.py --list
+python probe_endpoint.py --source-id '<exact ID from the list>' --output runtime-report.json
+```
+
+This runs six PCM trials (two rates; left, right and distinct stereo tones),
+then 100/50/10/0 percent and mute trials. It restores the endpoint volume/mute
+and reports failure if capture, channel separation, volume scaling or restoration
+fails. It does not change default output or send anything over AirPlay. Keep this
+report separate from compiler success; a synthetic analysis unit test is not a
+runtime pass. Windows endpoint absence should fail, not fall back to speakers.

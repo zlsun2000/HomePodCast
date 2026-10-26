@@ -87,6 +87,10 @@ foreach ($extension in @('*.inf', '*.cat', '*.dll', '*.pdb')) {
 }
 Copy-Item (Join-Path $SourceRoot 'LICENSE') (Join-Path $OutputRoot 'UPSTREAM-LICENSE.txt')
 Copy-Item (Join-Path $PSScriptRoot 'README.md') (Join-Path $OutputRoot 'README.md')
+if ($Prototype) {
+    Copy-Item (Join-Path $PSScriptRoot 'probe_endpoint.py') $OutputRoot
+    Copy-Item (Join-Path $PSScriptRoot 'probe-requirements.txt') $OutputRoot
+}
 $manifest.buildSucceeded = $true
 $manifest.files = @(Get-ChildItem $OutputRoot -Recurse -File | Where-Object Extension -In '.sys','.inf','.cat','.dll' |
     ForEach-Object { @{ path = [IO.Path]::GetRelativePath($OutputRoot, $_.FullName); sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash } })

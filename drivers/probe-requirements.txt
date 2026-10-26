@@ -1,0 +1,4 @@
+numpy==2.5.3
+SoundCard==0.4.6
+pycaw==20260927
+comtypes==1.4.17

@@ -44,6 +44,8 @@ def prepare(source: Path, destination: Path) -> None:
             content = content.replace("<TargetName>TabletAudioSample</TargetName>",
                                       "<TargetName>HomePodCastAudio</TargetName>")
             content = content.replace('Include="*.inx"', 'Include="HomePodCastAudio.inx"')
+            for unused in ("micintopo.cpp", "hdmitopo.cpp", "spdiftopo.cpp"):
+                content = content.replace(f'    <ClCompile Include="{unused}" />\n', "")
         project.write_text(content, encoding="utf-8")
     # Force the null sink: never allow the sample registry switch to enable
     # recording render PCM into files on disk.
