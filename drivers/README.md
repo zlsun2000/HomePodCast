@@ -46,9 +46,41 @@ packages and outputs are ignored by the HomePodCast repository.
 ## Following milestones
 
 1. Get a successful baseline build and review warnings and package contents.
-2. Add a separate HomePodCast endpoint project and bounded render/capture bridge.
+2. Build the separate HomePodCast render endpoint prototype described below.
 3. Build and statically check it in CI; distinguish it from baseline artifacts.
 4. Only then install test-signed packages in the isolated VM for runtime validation.
 
 Passing the baseline build is not evidence that any custom driver works. VM setup
 is not a prerequisite for writing and compiling the driver project in CI.
+
+## HomePodCast endpoint prototype
+
+`./drivers/build.ps1 -Prototype` prepares a fresh isolated tree under
+`.driver-prototype/`, retaining the locked upstream miniport implementation and
+MS-PL license. It overlays HomePodCast-owned endpoint tables and an INF with a
+distinct `Root\HomePodCastAudio` hardware ID, service, binary and catalog name.
+The baseline checkout is never patched. CI builds baseline and prototype as
+separate jobs and uploads distinct artifacts. This is a development prototype,
+not a signed release; its initial INF targets Windows 11 build 22621 or later.
+
+There is one render stream pin and an analog bridge pin, with no hardware audio
+engine node, hardware loopback pin, offload, microphone, APO or sideband device.
+Windows Audio Engine handles shared-mode client mixing. HomePodCast can capture
+that real mix using WASAPI software loopback on the render endpoint, rather than
+the SysVAD capture sine generator. This follows the documented fallback when a
+render endpoint has no hardware loopback pin:
+[Microsoft loopback recording](https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording).
+The driver consumes/discards render DMA using the upstream WaveRT clock and never
+forwards it to physical speakers. The sample's PCM file recording switch is removed.
+
+The endpoint declares 16-bit stereo PCM at 44.1/48 kHz (48 kHz default). Exclusive
+playback cannot be captured by WASAPI loopback. Windows volume/mute behavior,
+timing, multi-client mixing, sleep/PnP and actual PCM capture must be validated
+in the isolated Windows VM. A green compiler/API validation run does not prove
+these runtime behaviors. If software loopback is unsuitable after measurement,
+the alternative is a bounded, independently reviewed render/capture bridge.
+
+`prepare_prototype.py` hashes the overlay inputs in the build manifest and
+checks that it does not change baseline tracked files. New overlay files are
+MIT-licensed; upstream source and notices remain MS-PL. No binary is installed
+and no boot-security settings are changed by this build.

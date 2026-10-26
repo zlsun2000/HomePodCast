@@ -2,7 +2,8 @@ param(
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
     [string]$SourceRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) '.driver-source'),
     [string]$OutputRoot = (Join-Path (Split-Path -Parent $PSScriptRoot) 'driver-artifacts'),
-    [switch]$RestoreOnly
+    [switch]$RestoreOnly,
+    [switch]$Prototype
 )
 $ErrorActionPreference = 'Stop'
 $lock = Get-Content (Join-Path $PSScriptRoot 'upstream.lock.json') -Raw | ConvertFrom-Json
@@ -31,6 +32,13 @@ Invoke-Checked $nuget @('restore', (Join-Path $PSScriptRoot 'packages.x64.config
     '-PackagesDirectory', $packages, '-Source', 'https://api.nuget.org/v3/index.json', '-NonInteractive')
 if ($RestoreOnly) { return }
 
+$buildRoot = $SourceRoot
+if ($Prototype) {
+    $buildRoot = Join-Path (Split-Path -Parent $PSScriptRoot) ('.driver-prototype/' + [guid]::NewGuid())
+    Invoke-Checked python @((Join-Path $PSScriptRoot 'prepare_prototype.py'), '--source', $SourceRoot,
+        '--destination', $buildRoot)
+}
+
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 $msbuild = & $vswhere -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\amd64\MSBuild.exe'
 if ($LASTEXITCODE -ne 0 -or -not $msbuild) { throw 'Visual Studio x64 MSBuild not found' }
@@ -44,23 +52,35 @@ $manifest = [ordered]@{
     warning = 'Unmodified Microsoft SysVAD baseline; not HomePodCast Audio; not production signed.'
 }
 $manifestPath = Join-Path $OutputRoot 'build-manifest.json'
-$manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding utf8
-Invoke-Checked $msbuild @((Join-Path $SourceRoot $lock.solution), '/m', '/t:Build',
+if ($Prototype) {
+    $manifest.artifactKind = 'homepodcast-audio-prototype'
+    $manifest.warning = 'Experimental HomePodCast Audio null render endpoint; runtime unverified; not production signed.'
+    $manifest.prototype = Get-Content (Join-Path $buildRoot 'prototype-manifest.json') -Raw | ConvertFrom-Json
+}
+$manifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+$targets = @((Join-Path $buildRoot $lock.solution))
+if ($Prototype) {
+    $targets = @((Join-Path $buildRoot 'audio/sysvad/EndpointsCommon/EndpointsCommon.vcxproj'),
+        (Join-Path $buildRoot 'audio/sysvad/TabletAudioSample/TabletAudioSample.vcxproj'))
+}
+foreach ($target in $targets) {
+Invoke-Checked $msbuild @($target, '/m', '/t:Build',
     "/p:Configuration=$Configuration", '/p:Platform=x64', '/p:SignMode=Off',
     '/p:WindowsTargetPlatformVersion=10.0.28000.0',
-    "/bl:$(Join-Path $OutputRoot 'sysvad.binlog')", '/fl',
-    "/flp:logfile=$(Join-Path $OutputRoot 'sysvad.log');verbosity=normal")
-$binaries = @(Get-ChildItem (Join-Path $SourceRoot 'audio/sysvad') -Filter '*.sys' -Recurse)
+    "/bl:$(Join-Path $OutputRoot ((Split-Path $target -Leaf) + '.binlog'))", '/fl',
+    "/flp:logfile=$(Join-Path $OutputRoot ((Split-Path $target -Leaf) + '.log'));verbosity=normal")
+}
+$binaries = @(Get-ChildItem (Join-Path $buildRoot 'audio/sysvad') -Filter '*.sys' -Recurse)
 if (-not $binaries) { throw 'MSBuild completed but no driver binary was produced' }
 foreach ($file in $binaries) {
-    $relative = [IO.Path]::GetRelativePath($SourceRoot, $file.FullName)
+    $relative = [IO.Path]::GetRelativePath($buildRoot, $file.FullName)
     $destination = Join-Path $OutputRoot $relative
     New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
     Copy-Item -LiteralPath $file.FullName -Destination $destination
 }
 foreach ($extension in @('*.inf', '*.cat', '*.dll', '*.pdb')) {
-    foreach ($file in Get-ChildItem (Join-Path $SourceRoot 'audio/sysvad') -Filter $extension -Recurse) {
-        $destination = Join-Path $OutputRoot ([IO.Path]::GetRelativePath($SourceRoot, $file.FullName))
+    foreach ($file in Get-ChildItem (Join-Path $buildRoot 'audio/sysvad') -Filter $extension -Recurse) {
+        $destination = Join-Path $OutputRoot ([IO.Path]::GetRelativePath($buildRoot, $file.FullName))
         New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
         Copy-Item -LiteralPath $file.FullName -Destination $destination
     }
