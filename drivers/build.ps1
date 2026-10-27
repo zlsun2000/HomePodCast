@@ -74,9 +74,14 @@ Invoke-Checked $msbuild @($target, '/m', '/t:Build',
 }
 $binaries = @(Get-ChildItem (Join-Path $buildRoot 'audio/sysvad') -Filter '*.sys' -Recurse)
 if (-not $binaries) { throw 'MSBuild completed but no driver binary was produced' }
+if ($Prototype) {
+    $inf = Join-Path $buildRoot "audio/sysvad/TabletAudioSample/x64/$Configuration/HomePodCastAudio.inf"
+    $infverif = Join-Path $packages "Microsoft.Windows.WDK.x64.$($lock.kitVersion)/c/tools/10.0.28000.0/x64/infverif.exe"
+    Invoke-Checked $infverif @('/w', '/v', $inf)
+    $manifest.infVerified = $true
+}
 if ($TestSign) {
     if ($binaries.Count -ne 1) { throw 'Expected exactly one prototype binary' }
-    $inf = Join-Path $buildRoot "audio/sysvad/TabletAudioSample/x64/$Configuration/HomePodCastAudio.inf"
     & (Join-Path $PSScriptRoot 'sign_test_package.ps1') -Binary $binaries[0].FullName -Inf $inf `
         -PackageRoot (Join-Path $OutputRoot 'test-package') -Packages $packages -KitVersion $lock.kitVersion
     $manifest.signing = 'ephemeral-development-test'

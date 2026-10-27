@@ -72,6 +72,16 @@ def prepare(source: Path, destination: Path) -> None:
                 text[start:end] + "\n#endif" + text[end:])
         cursor = start
     engine_node.write_text(text, encoding="utf-8")
+    # Match the miniport's own QI policy: a software endpoint has no hardware
+    # engine controls. Do not expose the sample's simulated stream gain/mute.
+    stream = sysvad / "EndpointsCommon/minwavertstream.cpp"
+    text = stream.read_text(encoding="utf-8-sig")
+    for interface in ("IID_IMiniportStreamAudioEngineNode", "IID_IMiniportStreamAudioEngineNode2"):
+        original = f"IsEqualGUIDAligned(Interface, {interface}))"
+        if text.count(original) != 1:
+            raise ValueError("Upstream stream-engine QI changed")
+        text = text.replace(original, f"IsEqualGUIDAligned(Interface, {interface}) && m_pMiniport->IsOffloadSupported())")
+    stream.write_text(text, encoding="utf-8")
     resource = tablet / "TabletAudioSample.rc"
     text = resource.read_text(encoding="utf-8-sig")
     text = text.replace("Microsoft Virtual Audio Tablet Sample Driver", "HomePodCast Audio Prototype")
@@ -81,6 +91,7 @@ def prepare(source: Path, destination: Path) -> None:
         "transport": "wasapi-software-loopback",
         "hardwareId": r"Root\HomePodCastAudio",
         "runtimeVerified": False,
+        "generatorSha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "overlaySha256": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                           for p in sorted(overlay.iterdir())},
     }

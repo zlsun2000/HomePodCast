@@ -18,8 +18,29 @@ foreach ($path in @($Binary, $Inf, $signtool, $inf2cat)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Required file not found: $path" }
 }
 function Invoke-SigningTool([string]$Program, [string[]]$Arguments) {
-    & $Program @Arguments
-    if ($LASTEXITCODE -ne 0) { throw "Signing/verification tool failed: $Program ($LASTEXITCODE)" }
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo.FileName = $Program
+    $process.StartInfo.UseShellExecute = $false
+    $process.StartInfo.CreateNoWindow = $true
+    $process.StartInfo.RedirectStandardOutput = $true
+    $process.StartInfo.RedirectStandardError = $true
+    foreach ($argument in $Arguments) { $process.StartInfo.ArgumentList.Add($argument) }
+    try {
+        if (-not $process.Start()) { throw "Cannot start signing tool: $Program" }
+        $stdout = $process.StandardOutput.ReadToEndAsync()
+        $stderr = $process.StandardError.ReadToEndAsync()
+        if (-not $process.WaitForExit(120000)) {
+            $process.Kill($true)
+            $process.WaitForExit()
+            Write-Output $stdout.GetAwaiter().GetResult()
+            Write-Output $stderr.GetAwaiter().GetResult()
+            throw "Signing/verification tool timed out after 120 seconds: $Program"
+        }
+        Write-Output $stdout.GetAwaiter().GetResult()
+        Write-Output $stderr.GetAwaiter().GetResult()
+        if ($process.ExitCode -ne 0) { throw "Signing/verification tool failed: $Program ($($process.ExitCode))" }
+    }
+    finally { $process.Dispose() }
 }
 New-Item -Path $PackageRoot -ItemType Directory | Out-Null
 $certificate = $null
