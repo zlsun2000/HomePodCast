@@ -44,7 +44,7 @@ function Invoke-SigningTool([string]$Program, [string[]]$Arguments) {
 }
 New-Item -Path $PackageRoot -ItemType Directory | Out-Null
 $certificate = $null
-$rootCertificate = $null
+$rootCertificateInstalled = $false
 try {
     $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=HomePodCast Development Test' `
         -CertStoreLocation 'Cert:\CurrentUser\My' -KeyAlgorithm RSA -KeyLength 2048 `
@@ -64,7 +64,11 @@ try {
         '/fd', 'SHA256', $catalog)
     # Verify cryptographic signatures and catalog membership with the temporary
     # test trust anchor. This is not production kernel-policy certification.
-    $rootCertificate = Import-Certificate -FilePath $publicCert -CertStoreLocation 'Cert:\CurrentUser\Root'
+    # Import-Certificate into the root store can show an interactive trust prompt
+    # and hang on a headless runner. certutil's forced user-store operation is
+    # non-interactive and uses the same per-tool timeout as the signing tools.
+    Invoke-SigningTool 'certutil.exe' @('-user', '-f', '-addstore', 'Root', $publicCert)
+    $rootCertificateInstalled = $true
     Invoke-SigningTool $signtool @('verify', '/pa', '/v', $catalog)
     Invoke-SigningTool $signtool @('verify', '/pa', '/v', '/c', $catalog,
         (Join-Path $PackageRoot 'HomePodCastAudio.sys'))
@@ -76,6 +80,8 @@ try {
     } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $PackageRoot 'test-signing.json') -Encoding utf8
 }
 finally {
-    if ($rootCertificate) { Remove-Item -LiteralPath $rootCertificate.PSPath -Force }
+    if ($rootCertificateInstalled) {
+        Invoke-SigningTool 'certutil.exe' @('-user', '-f', '-delstore', 'Root', $certificate.Thumbprint)
+    }
     if ($certificate) { Remove-Item -LiteralPath $certificate.PSPath -Force -DeleteKey }
 }
