@@ -106,9 +106,10 @@ runtime pass. Windows endpoint absence should fail, not fall back to speakers.
 The prototype CI job passes `-TestSign`. This path is restricted to ephemeral
 GitHub-hosted runners: it creates a non-exportable RSA test key, embeds a SHA256
 signature in the SYS, generates a catalog with Inf2Cat for Windows 11 22H2/24H2,
-and signs the catalog. It temporarily trusts its public certificate on that
-runner to verify signatures and catalog membership, then removes the certificate
-and private key. Only the public CER, SYS, INF, CAT and verification metadata
+and signs the catalog. It verifies the catalog signature and package membership
+while accepting only the expected untrusted-root result for this self-signed test
+certificate, then removes the certificate and private key. Only the public CER,
+SYS, INF, CAT and verification metadata
 enter `test-package/`. This proves package integrity, not runtime correctness or
 Microsoft production kernel-signing eligibility. Every run creates a new test
 certificate. No production signing account or reusable private key is involved.
