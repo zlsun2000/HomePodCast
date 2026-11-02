@@ -22,6 +22,10 @@
 
 </div>
 
+**Virtual audio preview · 虚拟音频预览** — This fork adds optional virtual-output routing and an experimental single installer with standard VB-CABLE. See the [setup guide](docs/GUIDE.md), [installer build instructions](installer/README.md) and [current status](docs/DEVELOPMENT_STATUS.zh-CN.md). 本分支增加虚拟输出、自动切换与恢复及实验性一体安装包；Windows 中仍保留 VB-CABLE 原名称与端点。
+
+Preview builds are available as artifacts in [this fork's Build workflow](https://github.com/zlsun2000/HomePodCast/actions/workflows/build.yml). The download buttons above refer to the original upstream release, which does not include these preview changes.
+
 ![How to use HomePod Cast](docs/usage-en.png)
 
 <details>

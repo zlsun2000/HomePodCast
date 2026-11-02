@@ -8,3 +8,10 @@ __pycache__/
 .driver-prototype/
 .driver-packages/
 driver-artifacts/
+.build-tools/
+# Local reports contain device IDs, network addresses and machine inventory.
+/docs/P[0-9]_*.json
+/tools/guest/receiver-address.txt
+# One-off host preparation/rollback scripts are tied to a particular test package.
+/tools/host_*.ps1
+/tools/Run-*-Host.*

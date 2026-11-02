@@ -10,6 +10,22 @@ class SourcePolicyTests(unittest.TestCase):
     def test_virtual_candidates_exclude_physical_output(self):
         self.assertEqual(available_sources(self.devices, "virtual", None, "Missing"), self.devices[1:])
 
+    def test_physical_mode_excludes_virtual_and_never_replaces_saved_id(self):
+        self.assertEqual(available_sources(self.devices, "physical", None, "Missing"), self.devices[:1])
+        self.assertEqual(available_sources(self.devices, "physical", "cable", "Missing"),
+                         [("cable", "Missing", 0), self.devices[0]])
+
+    def test_standard_cable_hides_alternate_but_preserves_saved_choice(self):
+        devices = [("normal", "CABLE Input (VB-Audio)", 2),
+                   ("alt", "CABLE In 16ch (VB-Audio)", 2)]
+        self.assertEqual(available_sources(devices, "virtual", None, "Missing"), devices[:1])
+        self.assertEqual(available_sources(devices, "virtual", "alt", "Missing"), devices)
+
+    def test_renamed_homepodcast_endpoint_remains_virtual(self):
+        device = ("cable", "HomePodCast", 2)
+        self.assertEqual(available_sources([device], "virtual", None, "Missing"), [device])
+        self.assertEqual(available_sources([device], "physical", None, "Missing"), [(None, "Missing", 0)])
+
     def test_missing_saved_virtual_endpoint_cannot_fall_back(self):
         sources = available_sources(self.devices[:1], "virtual", "removed", "Missing")
         self.assertEqual(sources, [("removed", "Missing", 0)])

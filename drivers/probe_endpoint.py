@@ -34,12 +34,25 @@ def analyze(samples, rate, frequencies):
     return {"passed": bool(passed), "rms": rms.tolist(), "peaks_hz": peaks.tolist()}
 
 
-def capture_trial(speaker, render_rate, frequencies):
+def analyze_software_mute(raw, gated, rate, muted):
+    """Require real input PCM and silence after gating for the same frames."""
+    import numpy as np
+    source = analyze(raw, rate, (697, 1337))
+    filtered = analyze(gated, rate, (697, 1337))
+    raw_rms = float(np.mean(source.get("rms", [0])))
+    gated_rms = float(np.mean(filtered.get("rms", [0])))
+    passed = (muted and source["passed"] and len(raw) == len(gated) and
+              len(gated) >= rate // 4 and gated_rms < max(.00005, raw_rms * .005))
+    return {"raw_rms": raw_rms, "rms": gated_rms, "frames": len(raw),
+            "reported_mute": bool(muted), "passed": bool(passed)}
+
+
+def capture_trial(speaker, render_rate, frequencies, apply_mute_gate=False):
     import numpy as np
     import soundcard as sc
     rate = 48000
     ready, stop = threading.Event(), threading.Event()
-    frames, errors = [], []
+    frames, raw_frames, errors = [], [], []
 
     def record():
         initialized = ctypes.windll.ole32.CoInitializeEx(None, 0) >= 0
@@ -49,11 +62,20 @@ def capture_trial(speaker, render_rate, frequencies):
             microphone = sc.get_microphone(speaker.id, include_loopback=True)
             if microphone.id != speaker.id:
                 raise RuntimeError("WASAPI selected a different endpoint")
+            volume = None
+            if apply_mute_gate:
+                from audio_mute import apply_endpoint_mute
+                from pycaw.utils import AudioUtilities
+                enumerator = AudioUtilities.GetDeviceEnumerator()
+                volume = AudioUtilities.CreateDevice(enumerator.GetDevice(speaker.id)).EndpointVolume
             with microphone.recorder(rate, channels=2, blocksize=480) as recorder:
                 ready.set()
                 count = 0
                 while not stop.is_set():
                     chunk = recorder.record(numframes=None)
+                    if volume is not None:
+                        raw_frames.append(chunk.copy())
+                        chunk = apply_endpoint_mute(chunk, volume)
                     count += len(chunk)
                     if count > rate * 5:
                         raise RuntimeError("Capture exceeded bounded trial buffer")
@@ -82,7 +104,11 @@ def capture_trial(speaker, render_rate, frequencies):
         worker.join(3)
     if worker.is_alive() or errors:
         raise RuntimeError(f"Capture did not close cleanly: {errors}")
-    return np.concatenate(frames) if frames else np.zeros((0, 2), np.float32)
+    captured = np.concatenate(frames) if frames else np.zeros((0, 2), np.float32)
+    if apply_mute_gate:
+        raw = np.concatenate(raw_frames) if raw_frames else np.zeros((0, 2), np.float32)
+        return raw, captured
+    return captured
 
 
 def main():
@@ -126,15 +152,22 @@ def main():
             volume.SetMasterVolumeLevelScalar(scalar, None)
             volume.SetMute(int(muted), None)
             time.sleep(.15)
+            before = {"mute": bool(volume.GetMute()),
+                      "scalar": float(volume.GetMasterVolumeLevelScalar())}
             samples = capture_trial(speaker, 48000, (697, 1337))
+            after = {"mute": bool(volume.GetMute()),
+                     "scalar": float(volume.GetMasterVolumeLevelScalar())}
             result = analyze(samples, 48000, (697, 1337))
             rms = float(np.mean(result.get("rms", [0])))
             # No packets while muted is legitimate; zero is not success for
             # unmuted positive-volume trials.
-            report["volume_trials"].append({"scalar": scalar, "muted": muted, "rms": rms})
+            report["volume_trials"].append({"scalar": scalar, "muted": muted, "rms": rms,
+                                            "reported_before": before, "reported_after": after})
         rms = [trial["rms"] for trial in report["volume_trials"]]
         report["volume_passed"] = (rms[0] > rms[1] > rms[2] > .00005 and
                                     max(rms[3:]) < max(.00005, rms[0] * .005))
+        raw, gated = capture_trial(speaker, 48000, (697, 1337), apply_mute_gate=True)
+        report["software_mute"] = analyze_software_mute(raw, gated, 48000, bool(volume.GetMute()))
         report["passed"] = all(t["passed"] for t in report["pcm_trials"]) and report["volume_passed"]
     except Exception as error:
         report["error"] = str(error)

@@ -71,14 +71,16 @@ STRINGS = {
         "role_RL": "左后",
         "role_RR": "右后",
         "choose": "选择 HomePod",
-        "volume": "音量",
+        "volume": "音箱音量",
         "start": "开始串流",
         "stop": "停止",
         "settings": "设置",
         "source": "音源",
         "audio_mode": "音源模式",
-        "physical_mode": "现有输出设备",
-        "virtual_mode": "虚拟音频输出",
+        "physical_mode": "电脑输出（同时播放）",
+        "virtual_mode": "虚拟输出（HomePod）",
+        "physical_mode_hint": "电脑音箱和 HomePod 同时播放。Windows 音量控制默认输出；请确认音源与默认输出一致。",
+        "virtual_mode_hint": "使用虚拟输出时，可通过 Windows 调整音量；上方滑块调整 HomePod 自身音量。",
         "refresh_source": "刷新音源",
         "source_missing": "音源不可用，请刷新并选择设备",
         "auto_output": "串流就绪后自动切换输出，停止时恢复",
@@ -140,14 +142,16 @@ STRINGS = {
         "role_RL": "Rear L",
         "role_RR": "Rear R",
         "choose": "Choose a HomePod",
-        "volume": "Volume",
+        "volume": "Speaker",
         "start": "Start streaming",
         "stop": "Stop",
         "settings": "Settings",
         "source": "Source",
         "audio_mode": "Source mode",
-        "physical_mode": "Existing output device",
-        "virtual_mode": "Virtual audio output",
+        "physical_mode": "Computer output (both)",
+        "virtual_mode": "Virtual output (HomePod)",
+        "physical_mode_hint": "Computer speakers and HomePod both play. Windows volume controls the default output; select it as the source.",
+        "virtual_mode_hint": "Use Windows volume for the virtual output. The slider above controls the HomePod volume.",
         "refresh_source": "Refresh sources",
         "source_missing": "Source unavailable; refresh and choose a device",
         "auto_output": "Switch output when ready; restore on stop",
@@ -278,9 +282,10 @@ def newer_release():
     latest = release["tag_name"].lstrip("v")
     if numbers(latest) <= numbers(VERSION):
         return None
-    exe = next(
-        (a for a in release.get("assets", []) if a["name"].lower().endswith(".exe")), {}
-    )
+    # A release can also contain HomePodCast-Setup.exe. Never overwrite the
+    # running application with the installer merely because it appears first.
+    exe = next((a for a in release.get("assets", [])
+                if a["name"].lower() == "homepodcast.exe"), {})
     return {
         "version": latest,
         "url": exe.get("browser_download_url", ""),
@@ -517,6 +522,10 @@ class App:
                                         self.set_audio_mode, WIDTH - LABEL)
         self.audio_mode_box.set(self.tr("virtual_mode" if self.audio_mode == "virtual" else "physical_mode"))
         self.audio_mode_box.pack(side="left")
+        self.audio_mode_hint = ctk.CTkLabel(self.settings,
+            text=self.tr("virtual_mode_hint" if self.audio_mode == "virtual" else "physical_mode_hint"),
+            font=self.small, text_color=MUTED, wraplength=WIDTH - 20, justify="left")
+        self.audio_mode_hint.pack(pady=4)
         row = self.setting_row(self.tr("source"))
         self.source_labels = source_labels(self.sources,
             lambda name, channels: self.tr("source_item", name=name, channels=channels))
@@ -782,6 +791,7 @@ class App:
         if not self.refresh_sources(preserve=False):
             self.audio_mode = previous
             self.audio_mode_box.set(self.tr("virtual_mode" if previous == "virtual" else "physical_mode"))
+        self.audio_mode_hint.configure(text=self.tr("virtual_mode_hint" if self.audio_mode == "virtual" else "physical_mode_hint"))
         self.set_controls(not self.running)
 
     def set_auto_output(self, enabled):
@@ -1004,6 +1014,7 @@ class App:
                            "restore_on_disconnect": self.restore_on_disconnect,
                            "communications": self.switch_communications}
             if self.audio_mode == "virtual" and self.auto_switch_output else None,
+            respect_endpoint_mute=self.audio_mode == "virtual",
         )
         self.pending.append((future, self.started))
 
@@ -1144,6 +1155,10 @@ class App:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 2 and sys.argv[1] == "--configure-virtual-audio":
+        from virtual_audio_setup import run
+
+        raise SystemExit(run())
     if len(sys.argv) == 3 and sys.argv[1] == "--self-test":
         from runtime_check import run
 

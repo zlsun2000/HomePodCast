@@ -1,4 +1,6 @@
 pyatv==0.18.0
+# pyatv 0.18 passes the SRP private key positionally; srptools 2 changed that API.
+srptools==1.0.1
 SoundCard==0.4.6
 customtkinter==6.0.0
 numpy==2.5.3

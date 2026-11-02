@@ -103,6 +103,7 @@ Copy-Item (Join-Path $SourceRoot 'LICENSE') (Join-Path $OutputRoot 'UPSTREAM-LIC
 Copy-Item (Join-Path $PSScriptRoot 'README.md') (Join-Path $OutputRoot 'README.md')
 if ($Prototype) {
     Copy-Item (Join-Path $PSScriptRoot 'probe_endpoint.py') $OutputRoot
+    Copy-Item (Join-Path $PSScriptRoot 'audio_mute.py') $OutputRoot
     Copy-Item (Join-Path $PSScriptRoot 'probe-requirements.txt') $OutputRoot
 }
 $manifest.buildSucceeded = $true

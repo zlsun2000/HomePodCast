@@ -1,4 +1,9 @@
 # Build dist\HomePodCast.exe. Needs Python 3.12 and: pip install -r requirements.txt
+param(
+    [string]$DistDir = 'dist',
+    [string]$WorkDir = 'build'
+)
+$ErrorActionPreference = 'Stop'
 
 # The exe carries the version from app.py in its file properties
 $version = (Select-String -Path app.py -Pattern '^VERSION = "(.+)"').Matches[0].Groups[1].Value
@@ -27,7 +32,8 @@ if (Test-Path -LiteralPath $certificatePolicy) {
     $runtimeData += @('--add-data', ($certificatePolicy + ';.'))
 }
 
-pyinstaller --noconfirm --clean --onefile --windowed --name HomePodCast --icon icon.ico `
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name HomePodCast --icon icon.ico `
+    --distpath $DistDir --workpath $WorkDir `
     --version-file $info `
     @runtimeData `
     --collect-data soundcard --collect-data customtkinter --collect-submodules pyatv app.py

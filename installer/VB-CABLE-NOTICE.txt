@@ -1,0 +1,9 @@
+HomePodCast includes the unmodified standard VB-CABLE package by VB-Audio Software.
+VB-CABLE is donationware. If you find it useful, please consider supporting or
+paying for a license according to VB-Audio's terms.
+
+Official website and donations: https://vb-cable.com/
+Distribution and licensing: https://vb-audio.com/Services/licensing.htm
+
+VB-CABLE is third-party software, not part of HomePodCast's MIT-licensed code.
+The vendor's original readme and license are included in the VBCABLE folder.

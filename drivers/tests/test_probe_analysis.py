@@ -33,6 +33,14 @@ class ProbeAnalysisTests(unittest.TestCase):
         self.assertFalse(probe.analyze(np.zeros_like(self.stereo), self.rate, (697, 1337))["passed"])
         self.assertFalse(probe.analyze(self.stereo[:40], self.rate, (697, 1337))["passed"])
 
+    def test_software_mute_requires_real_input_and_silent_output(self):
+        silence = np.zeros_like(self.stereo)
+        self.assertTrue(probe.analyze_software_mute(self.stereo, silence, self.rate, True)["passed"])
+        self.assertFalse(probe.analyze_software_mute(silence, silence, self.rate, True)["passed"])
+        self.assertFalse(probe.analyze_software_mute(self.stereo, self.stereo, self.rate, True)["passed"])
+        self.assertFalse(probe.analyze_software_mute(self.stereo, silence, self.rate, False)["passed"])
+        self.assertFalse(probe.analyze_software_mute(self.stereo, silence[:40], self.rate, True)["passed"])
+
 
 if __name__ == "__main__":
     unittest.main()
