@@ -9,6 +9,28 @@ from engine import Capture
 
 
 class CaptureTests(unittest.TestCase):
+    def test_software_volume_scales_actual_capture(self):
+        sys.coinit_flags = 0
+        from pycaw.utils import AudioUtilities
+
+        samples = np.full((441, 2), .25, np.float32)
+        capture = Capture("virtual", 2, software_volume=True)
+        microphone = MagicMock(id="virtual")
+        recorder = microphone.recorder.return_value.__enter__.return_value
+        def record(**kwargs):
+            capture.stop()
+            return samples
+        recorder.record.side_effect = record
+        volume = Mock()
+        volume.GetMute.return_value = False
+        volume.GetMasterVolumeLevelScalar.return_value = .01
+        with patch("soundcard.get_microphone", return_value=microphone), \
+             patch.object(AudioUtilities, "GetDeviceEnumerator"), \
+             patch.object(AudioUtilities, "CreateDevice", return_value=Mock(EndpointVolume=volume)):
+            capture.run()
+        self.assertIsNone(capture.error)
+        np.testing.assert_allclose(capture.ring.read(capture.ring.n), samples * .01)
+
     def test_failed_com_initialization_reports_error_without_uninitializing(self):
         capture = Capture("virtual", 2, respect_endpoint_mute=True)
         with patch.object(ctypes.windll.ole32, "CoInitializeEx", return_value=-2147417850), \

@@ -7,6 +7,16 @@ from drivers.audio_mute import apply_endpoint_mute
 
 
 class EndpointMuteTests(unittest.TestCase):
+    def test_opt_in_software_volume_scales_nonzero_and_preserves_mute(self):
+        samples = np.array([[0.5, -0.25]], dtype=np.float32)
+        volume = Mock()
+        volume.GetMute.return_value = False
+        for scalar in (0.01, 0.05, 0.5, 1.0):
+            volume.GetMasterVolumeLevelScalar.return_value = scalar
+            np.testing.assert_allclose(apply_endpoint_mute(samples, volume, True), samples * scalar)
+        volume.GetMute.return_value = True
+        np.testing.assert_array_equal(apply_endpoint_mute(samples, volume, True), np.zeros_like(samples))
+
     def test_unmuted_samples_are_unchanged_and_muted_samples_are_silent(self):
         samples = np.array([[0.5, -0.2], [-0.4, 0.1]], dtype=np.float32)
         original = samples.copy()

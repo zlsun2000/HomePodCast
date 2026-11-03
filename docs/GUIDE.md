@@ -2,7 +2,14 @@
 
 ## Virtual cable preview · 虚拟声卡预览
 
-VB-CABLE 控制面板 Options 中须启用 **Enable Windows Volume Control**，才能让 Windows 音量/静音作用于目前测试的虚拟采集路径。Enable this option in the VB-CABLE control panel for Windows volume and mute to affect the tested loopback path.
+Windows 音量可使用以下互斥方式：
+
+1. **软件音量（预览）：**以管理员身份运行 `VBCABLE_ControlPanel.exe`，在 Options 取消勾选 **Enable Windows Volume Control**，确认显示 `Volume Control: Disabled`，再在 HomePodCast 设置中启用“软件控制虚拟输出音量”（默认关闭）。
+2. **驱动音量：**以管理员身份运行控制面板并勾选 **Enable Windows Volume Control**，确认显示 `Volume Control: Enabled`；同时关闭应用的“软件控制虚拟输出音量”。此前仅以普通权限临时启用时，可在管理员模式关闭后再启用，以保存设置。
+
+不要同时开启，否则可能重复衰减。实测本机驱动音量开启时 Windows 1–5 的采集信号为零，关闭后有非零信号；软件音量的低音量 HomePod 实际听感仍待验证。
+
+Choose one method: **Software volume for virtual output** (off by default) requires disabling **Enable Windows Volume Control** in the VB-CABLE control panel run as administrator; alternatively enable the driver option and leave software volume off. Do not enable both: gain may be applied twice. On the tested PC, levels 1–5 yielded silent captured PCM with driver volume enabled but nonzero PCM with it disabled. The low-volume HomePod listening result using software volume remains unverified.
 
 实验安装包附带标准 VB-CABLE，安装后可从开始菜单运行 **Configure HomePodCast Virtual Audio** 配置向导。已有可用驱动会直接复用；缺少驱动时，经确认打开原厂安装界面，重启后再次运行配置向导。安装包仍为预览版，构建和签名说明见 [installer/README.md](../installer/README.md)。
 

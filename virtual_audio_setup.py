@@ -257,7 +257,7 @@ def run():
         if messagebox.askyesno("HomePodCast", "检测到 VB-CABLE。是否将 HomePodCast 设置为仅通过 HomePod 播放，并在停止时恢复电脑输出？\n\n这只修改 HomePodCast 的音源设置，不会立即切换 Windows 输出。"):
             config_path = Path(os.environ["APPDATA"]) / "HomePodCast" / "config.json"
             save_virtual_config(config_path, source)
-            messagebox.showinfo("HomePodCast", "配置完成。打开 HomePodCast，选择 HomePod 并开始串流。\n\n如果 Windows 音量无效，请在 VB-CABLE 控制面板启用 Enable Windows Volume Control，并关闭录音设备的“侦听此设备”。")
+            messagebox.showinfo("HomePodCast", "配置完成。打开 HomePodCast，选择 HomePod 并开始串流。\n\n若使用软件音量，请在管理员版 VB-CABLE 控制面板关闭 Enable Windows Volume Control，并在应用设置中启用软件音量。也可启用驱动音量、关闭应用软件音量；不要同时启用。请关闭录音设备的“侦听此设备”。")
         return 0
     except Exception as exc:
         messagebox.showerror("HomePodCast", f"虚拟音频配置未完成：{exc}")

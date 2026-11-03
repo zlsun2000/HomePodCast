@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import tkinter as tk
+from tkinter import messagebox
 import urllib.request
 import webbrowser
 import winreg
@@ -87,7 +88,10 @@ STRINGS = {
         "restore_disconnect": "全部音箱掉线 10 秒后停止并恢复输出",
         "switch_communications": "同时切换通信应用输出",
         "cable_help": "VB-CABLE 安装与配置",
-        "cable_volume_hint": "在 VB-CABLE 控制面板启用 Enable Windows Volume Control；关闭“侦听此设备”。",
+        "cable_volume_hint": "关闭软件音量时，在 VB-CABLE 控制面板启用 Enable Windows Volume Control；关闭“侦听此设备”。",
+        "software_volume": "软件控制虚拟输出音量",
+        "software_volume_confirm": "启用前，请在管理员版 VB-CABLE 控制面板关闭 Options → Enable Windows Volume Control。否则音量会被重复衰减。\n\n你已关闭该选项吗？",
+        "software_volume_hint": "软件音量开启时，必须关闭 VB-CABLE 的 Enable Windows Volume Control，避免重复衰减。",
         "recover_output": "恢复上次异常退出前的输出",
         "output_recovered": "输出设备恢复完成",
         "source_item": "{name}（{channels} 声道）",
@@ -158,7 +162,10 @@ STRINGS = {
         "restore_disconnect": "Stop and restore after all receivers are offline for 10 s",
         "switch_communications": "Also switch communications output",
         "cable_help": "VB-CABLE installation and setup",
-        "cable_volume_hint": "Enable Windows Volume Control in the VB-CABLE panel. Keep recording-device monitoring disabled.",
+        "cable_volume_hint": "When software volume is off, enable Windows Volume Control in VB-CABLE. Keep recording-device monitoring disabled.",
+        "software_volume": "Software volume for virtual output",
+        "software_volume_confirm": "First turn OFF Options → Enable Windows Volume Control in the administrator VB-CABLE panel to avoid applying volume twice.\n\nHave you turned it off?",
+        "software_volume_hint": "When software volume is on, turn off VB-CABLE's Enable Windows Volume Control to avoid double attenuation.",
         "recover_output": "Recover output from previous session",
         "output_recovered": "Output recovery completed",
         "source_item": "{name} ({channels} ch)",
@@ -366,6 +373,7 @@ class App:
         except Exception:
             pass  # Manual refresh remains available if notifications cannot be registered.
         self.auto_switch_output = self.config.get("auto_switch_output") is True
+        self.software_volume = self.config.get("software_volume") is True
         self.restore_on_disconnect = self.config.get("restore_on_disconnect") is True
         self.switch_communications = self.config.get("switch_communications") is True
         self.audio_mode = self.config.get("audio_mode", "physical")
@@ -539,6 +547,11 @@ class App:
                       command=lambda: webbrowser.open("https://vb-audio.com/Cable/index.htm")).pack(pady=4)
         ctk.CTkLabel(self.settings, text=self.tr("cable_volume_hint"), font=self.small,
                      text_color=MUTED, wraplength=WIDTH - 20).pack(pady=4)
+        self.software_volume_box = self.switch(self.settings, self.tr("software_volume"),
+                                               self.software_volume, self.set_software_volume)
+        self.software_volume_box.pack(pady=4)
+        ctk.CTkLabel(self.settings, text=self.tr("software_volume_hint"), font=self.small,
+                     text_color=MUTED, wraplength=WIDTH - 20, justify="left").pack(pady=4)
         self.auto_output_box = self.switch(self.settings, self.tr("auto_output"),
                                            self.auto_switch_output,
                                            self.set_auto_output)
@@ -727,7 +740,7 @@ class App:
         state = "normal" if enabled else "disabled"
         for widget in [*self.role_boxes.values(), self.source_box, self.buffer_box,
                        self.audio_mode_box, self.refresh_source_button,
-                       self.auto_output_box,
+                       self.auto_output_box, self.software_volume_box,
                        self.restore_disconnect_box,
                        self.communications_box,
                        self.recover_output_button,
@@ -741,6 +754,7 @@ class App:
         )
         virtual = enabled and self.audio_mode == "virtual"
         self.auto_output_box.configure(state="normal" if virtual else "disabled")
+        self.software_volume_box.configure(state="normal" if virtual else "disabled")
         for widget in (self.restore_disconnect_box, self.communications_box):
             widget.configure(state="normal" if virtual and self.auto_switch_output else "disabled")
         # The volume belongs to the stream: live while streaming, dimmed otherwise
@@ -762,6 +776,7 @@ class App:
             "schema_version": 2,
             "audio_mode": self.audio_mode,
             "auto_switch_output": self.auto_switch_output,
+            "software_volume": self.software_volume,
             "restore_on_disconnect": self.restore_on_disconnect,
             "switch_communications": self.switch_communications,
             "language": self.lang,
@@ -797,6 +812,12 @@ class App:
     def set_auto_output(self, enabled):
         self.auto_switch_output = enabled
         self.set_controls(not self.running)
+
+    def set_software_volume(self, enabled):
+        if enabled and not messagebox.askyesno(APP_NAME, self.tr("software_volume_confirm"), parent=self.root):
+            self.software_volume_box.deselect()
+            return
+        self.software_volume = enabled
 
     def refresh_sources(self, preserve=True):
         saved_id = self.sources[self.source_index][0] if preserve else None
@@ -1015,6 +1036,7 @@ class App:
                            "communications": self.switch_communications}
             if self.audio_mode == "virtual" and self.auto_switch_output else None,
             respect_endpoint_mute=self.audio_mode == "virtual",
+            software_volume=self.audio_mode == "virtual" and self.software_volume,
         )
         self.pending.append((future, self.started))
 

@@ -268,12 +268,13 @@ def list_sources():
 class Capture(threading.Thread):
     """WASAPI loopback capture of an output device into a ring buffer."""
 
-    def __init__(self, source_id: str, channels: int, respect_endpoint_mute=False):
+    def __init__(self, source_id: str, channels: int, respect_endpoint_mute=False, software_volume=False):
         super().__init__(daemon=True)
         self.source_id = source_id
         self.ring = Ring(channels)
         self.channels = channels
         self.respect_endpoint_mute = respect_endpoint_mute
+        self.software_volume = software_volume
         self.error = None
         self.ready = threading.Event()
         self._stop_event = threading.Event()
@@ -292,7 +293,7 @@ class Capture(threading.Thread):
             mic = sc.get_microphone(self.source_id, include_loopback=True)
             if mic.id != self.source_id:
                 raise RuntimeError("Capture endpoint no longer available")
-            if self.respect_endpoint_mute:
+            if self.respect_endpoint_mute or self.software_volume:
                 # Engine can also run without the UI or automatic routing.
                 # Match SoundCard even if this is the first comtypes import.
                 sys.coinit_flags = 0
@@ -306,7 +307,7 @@ class Capture(threading.Thread):
                 while not self._stop_event.is_set():
                     samples = rec.record(numframes=None)
                     if volume is not None:
-                        samples = apply_endpoint_mute(samples, volume)
+                        samples = apply_endpoint_mute(samples, volume, self.software_volume)
                     self.ring.write(samples)
         except Exception as ex:  # pylint: disable=broad-except
             self.error = ex
@@ -605,7 +606,7 @@ class Engine:
         return self._submit(self._scan(timeout))
 
     def start(self, confs, mode: str, source_id: str, src_channels: int, buffer_ms=None,
-              reconnect: bool = True, route_options=None, respect_endpoint_mute=False):
+              reconnect: bool = True, route_options=None, respect_endpoint_mute=False, software_volume=False):
         """Start streaming. confs are ordered like MODES[mode].
 
         buffer_ms is the network buffer; None lets the engine tune it. Without
@@ -613,7 +614,7 @@ class Engine:
         """
         return self._submit(
             self._start(confs, mode, source_id, src_channels, buffer_ms, reconnect, route_options,
-                        respect_endpoint_mute)
+                        respect_endpoint_mute, software_volume)
         )
 
     def stop(self):
@@ -688,7 +689,7 @@ class Engine:
         return sorted(confs, key=lambda c: c.name)
 
     async def _start(self, confs, mode, source_id, src_channels, buffer_ms, reconnect,
-                     route_options=None, respect_endpoint_mute=False):
+                     route_options=None, respect_endpoint_mute=False, software_volume=False):
         if self.state != "idle" or self._starting is not None:
             raise RuntimeError("already running")
         self._starting = asyncio.current_task()
@@ -703,7 +704,7 @@ class Engine:
                 self.routing = OutputRouting(backend, RoutingJournal(route_options["journal_path"]))
                 self.routing.prepare(source_id, route_options.get("communications", False))
             await self._start_stream(confs, mode, source_id, src_channels, buffer_ms, reconnect,
-                                     respect_endpoint_mute)
+                                     respect_endpoint_mute, software_volume)
             if route_options:
                 deadline = time.monotonic() + 5
                 while not all(self.timing.requests.get(o.address, 0) for o in self.outputs):
@@ -720,7 +721,7 @@ class Engine:
             self._starting = None
 
     async def _start_stream(self, confs, mode, source_id, src_channels, buffer_ms, reconnect,
-                            respect_endpoint_mute=False):
+                            respect_endpoint_mute=False, software_volume=False):
         if self.state != "idle":
             raise RuntimeError("already running")
         self.state, self.error = "connecting", None
@@ -732,7 +733,7 @@ class Engine:
         try:
             await asyncio.gather(*(o.connect(self.timing.port) for o in self.outputs))
             if source_id is not None:
-                self.capture = Capture(source_id, src_channels, respect_endpoint_mute)
+                self.capture = Capture(source_id, src_channels, respect_endpoint_mute, software_volume)
                 self.capture.start()
                 if not await asyncio.to_thread(self.capture.ready.wait, 5):
                     raise RuntimeError("Audio capture initialization timed out")
