@@ -28,6 +28,9 @@ CONFIG_PATH = os.path.join(os.environ.get("APPDATA", "."), "HomePodCast", "confi
 RELEASES = "https://github.com/zlsun2000/HomePodCast/releases/latest"
 DOWNLOADS = "https://github.com/zlsun2000/HomePodCast/releases/download/"
 LATEST_API = "https://api.github.com/repos/zlsun2000/HomePodCast/releases/latest"
+VB_CABLE_PAGE = "https://vb-audio.com/Cable/"
+VB_CABLE_PACKAGE = "VBCABLE_Driver_Pack46.zip"
+VB_CABLE_DOWNLOAD = f"https://download.vb-audio.com/Download_CABLE/{VB_CABLE_PACKAGE}"
 
 # Where Windows keeps the programs it starts at sign-in
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -87,7 +90,31 @@ STRINGS = {
         "auto_output": "串流就绪后自动切换输出，停止时恢复",
         "restore_disconnect": "全部音箱掉线 10 秒后停止并恢复输出",
         "switch_communications": "同时切换通信应用输出",
-        "cable_help": "VB-CABLE 安装与配置",
+        "cable_setup_hint": "未找到可用的虚拟输出。打开安装指引，下载或检测 VB-CABLE。",
+        "cable_setup": "设置仅用 HomePod 播放",
+        "cable_help": "VB-CABLE 安装与使用",
+        "cable_step_download": "1. 下载标准版 VB-CABLE",
+        "cable_file": "下载后，在浏览器的下载列表里找到 {filename}。",
+        "cable_download": "下载 Windows ZIP",
+        "cable_website": "VB-Audio 官网",
+        "cable_step_install": "2. 解压并安装",
+        "cable_install": "右键 ZIP → 全部解压缩。在解压后的文件夹中，右键 VBCABLE_Setup_x64.exe → 以管理员身份运行。点击 Install Driver，完成后重启 Windows。",
+        "cable_step_detect": "3. 重启后检测",
+        "cable_not_found": "未找到可用的 CABLE Input。重启后，打开 HomePodCast，从「设置仅用 HomePod 播放」回到这里。如果已经安装，请到声音设置确认 CABLE Input 已启用。",
+        "cable_detect": "检测 CABLE Input",
+        "cable_sound_settings": "打开 Windows 声音设置",
+        "cable_detect_failed": "读取 Windows 播放设备失败。请重新检测。",
+        "cable_found": "已找到 CABLE Input",
+        "cable_multiple": "找到多个 CABLE Input",
+        "cable_choose": "请在设置中选择要用的音源，再开启自动切换。",
+        "cable_choose_settings": "打开音源设置",
+        "cable_apply": "使用 CABLE Input 并自动切换",
+        "cable_apply_hint": "应用后，HomePodCast 会在串流就绪时把 Windows 默认输出切到 CABLE Input，停止时恢复原来的设备。",
+        "cable_configured": "已设为 HomePod 串流音源",
+        "cable_stream": "选择 HomePod 并点击「开始串流」。串流就绪后，Windows 默认输出会切换到 CABLE Input，停止时恢复。",
+        "cable_adjust": "串流时用 Windows 调节音量。如果音量没变化，请在解压目录中以管理员身份运行 VBCABLE_ControlPanel.exe，并在 Options 中启用 Enable Windows Volume Control。",
+        "cable_adjust_software": "当前使用软件音量，串流时可用 Windows 调节。请在 VB-CABLE 控制面板的 Options 中关闭 Enable Windows Volume Control，避免重复调节。",
+        "cable_done": "完成",
         "cable_volume_hint": "关闭软件音量时，在 VB-CABLE 控制面板启用 Enable Windows Volume Control；关闭“侦听此设备”。",
         "software_volume": "软件控制虚拟输出音量",
         "software_volume_confirm": "启用前，请在管理员版 VB-CABLE 控制面板关闭 Options → Enable Windows Volume Control。否则音量会被重复衰减。\n\n你已关闭该选项吗？",
@@ -161,7 +188,31 @@ STRINGS = {
         "auto_output": "Switch output when ready; restore on stop",
         "restore_disconnect": "Stop and restore after all receivers are offline for 10 s",
         "switch_communications": "Also switch communications output",
-        "cable_help": "VB-CABLE installation and setup",
+        "cable_setup_hint": "No virtual output is available. Open the setup guide to download or detect VB-CABLE.",
+        "cable_setup": "Set up HomePod-only playback",
+        "cable_help": "VB-CABLE setup and use",
+        "cable_step_download": "1. Download standard VB-CABLE",
+        "cable_file": "Look for {filename} in your browser’s downloads.",
+        "cable_download": "Download Windows ZIP",
+        "cable_website": "VB-Audio website",
+        "cable_step_install": "2. Extract and install",
+        "cable_install": "Right-click the ZIP and choose Extract All. In the extracted folder, run VBCABLE_Setup_x64.exe as administrator. Select Install Driver, then restart Windows.",
+        "cable_step_detect": "3. Check after restarting",
+        "cable_not_found": "CABLE Input is unavailable. After restarting, reopen HomePodCast and select Set up HomePod-only playback. If already installed, make sure CABLE Input is enabled in Sound settings.",
+        "cable_detect": "Detect CABLE Input",
+        "cable_sound_settings": "Open Windows Sound settings",
+        "cable_detect_failed": "Could not read Windows playback devices. Try detecting again.",
+        "cable_found": "CABLE Input found",
+        "cable_multiple": "Multiple CABLE Input devices found",
+        "cable_choose": "Choose an audio source in Settings, then enable automatic output switching.",
+        "cable_choose_settings": "Open audio source settings",
+        "cable_apply": "Use CABLE Input and auto-switch",
+        "cable_apply_hint": "This makes HomePodCast switch the Windows default output to CABLE Input when a stream is ready and restore the previous output when it stops.",
+        "cable_configured": "HomePod playback is set up",
+        "cable_stream": "Choose a HomePod and select Start streaming. When the stream is ready, Windows switches its default output to CABLE Input. The previous output returns when you stop.",
+        "cable_adjust": "Use Windows volume while streaming. If it has no effect, run VBCABLE_ControlPanel.exe as administrator from the extracted folder. Select Options → Enable Windows Volume Control.",
+        "cable_adjust_software": "Software volume is on. Use Windows volume while streaming. In the VB-CABLE control panel, turn off Options → Enable Windows Volume Control to avoid applying volume twice.",
+        "cable_done": "Done",
         "cable_volume_hint": "When software volume is off, enable Windows Volume Control in VB-CABLE. Keep recording-device monitoring disabled.",
         "software_volume": "Software volume for virtual output",
         "software_volume_confirm": "First turn OFF Options → Enable Windows Volume Control in the administrator VB-CABLE panel to avoid applying volume twice.\n\nHave you turned it off?",
@@ -358,6 +409,131 @@ def in_background(function) -> Future:
     return future
 
 
+class CableGuide(tk.Toplevel):
+    def __init__(self, app):
+        super().__init__(app.root)
+        self.withdraw()
+        self.app = app
+        self.endpoint_id = None
+        self.title(app.tr("cable_help"))
+        self.transient(app.root)
+        self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", app.close_cable_guide)
+        self.bind("<Escape>", lambda _: app.close_cable_guide())
+
+        surface = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=0)
+        surface.pack(fill="both", expand=True)
+        panel = ctk.CTkFrame(surface, fg_color="transparent")
+        panel.pack(padx=22, pady=20)
+        ctk.CTkLabel(
+            panel, text=app.tr("cable_setup"), width=438, anchor="w",
+            font=ctk.CTkFont(FONTS[app.lang], 20, "bold"), text_color=TEXT,
+        ).pack(fill="x", pady=(0, 12))
+
+        self.install_steps = ctk.CTkFrame(panel, fg_color="transparent")
+        self.label(self.install_steps, "cable_step_download", heading=True)
+        self.label(self.install_steps, "cable_file", filename=VB_CABLE_PACKAGE)
+        links = ctk.CTkFrame(self.install_steps, fg_color="transparent")
+        links.pack(fill="x", pady=(8, 14))
+        self.download_button = self.button(
+            links, "cable_download", lambda: webbrowser.open(VB_CABLE_DOWNLOAD), primary=True,
+        )
+        self.download_button.pack(side="left", padx=(0, 8))
+        self.website_button = self.button(links, "cable_website", lambda: webbrowser.open(VB_CABLE_PAGE))
+        self.website_button.pack(side="left")
+
+        self.label(self.install_steps, "cable_step_install", heading=True)
+        self.label(self.install_steps, "cable_install")
+
+        self.result = ctk.CTkFrame(panel, fg_color=FIELD, corner_radius=10)
+        self.result.pack(fill="x")
+        details = ctk.CTkFrame(self.result, fg_color="transparent")
+        details.pack(fill="x", padx=14, pady=12)
+        self.result_heading = self.label(details, "cable_step_detect", heading=True)
+        self.result_text = self.label(details, "cable_not_found", wraplength=410)
+        self.volume_hint = self.label(details, "cable_adjust", wraplength=410)
+        self.volume_hint.pack_forget()
+        self.check_actions = ctk.CTkFrame(details, fg_color="transparent")
+        self.detect_button = self.button(
+            self.check_actions, "cable_detect", app.refresh_sources, primary=True,
+        )
+        self.detect_button.pack(side="left", padx=(0, 8))
+        self.sound_settings_button = self.button(
+            self.check_actions, "cable_sound_settings", lambda: os.startfile("ms-settings:sound"),
+        )
+        self.sound_settings_button.pack(side="left")
+        self.confirm = self.button(details, "cable_apply", self.apply, primary=True)
+
+    def label(self, parent, key, *, heading=False, wraplength=438, **values):
+        label = ctk.CTkLabel(
+            parent, text=self.app.tr(key, **values), wraplength=wraplength, height=0,
+            justify="left", anchor="w", font=self.app.bold if heading else self.app.font,
+            text_color=TEXT if heading else MUTED,
+        )
+        label.pack(fill="x", pady=(0, 2))
+        return label
+
+    def button(self, parent, key, command, *, primary=False):
+        return ctk.CTkButton(
+            parent, text=self.app.tr(key), command=command, height=34, width=0,
+            corner_radius=8, font=self.app.font,
+            fg_color=ACCENT if primary else SELECTED,
+            hover_color=ACCENT_HOVER if primary else FIELD_HOVER,
+            text_color=INK if primary else TEXT,
+        )
+
+    def show_missing(self, message):
+        self.endpoint_id = None
+        self.install_steps.pack(fill="x", before=self.result, pady=(0, 12))
+        self.result_heading.configure(text=self.app.tr("cable_step_detect"))
+        self.result_text.configure(text=self.app.tr(message))
+        self.volume_hint.pack_forget()
+        self.confirm.pack_forget()
+        self.check_actions.pack(fill="x", pady=(8, 0))
+
+    def show_devices(self, devices):
+        self.devices = devices
+        cables = [
+            endpoint_id for endpoint_id, name, channels in devices
+            if endpoint_id and channels > 0 and name.split(" (", 1)[0].strip().casefold() == "cable input"
+        ]
+        if not cables:
+            self.show_missing("cable_not_found")
+            return
+        app = self.app
+        current_id = app.sources[app.source_index][0] if app.audio_mode == "virtual" else None
+        self.endpoint_id = cables[0] if len(cables) == 1 else None
+        if current_id in cables:
+            self.endpoint_id = current_id
+
+        self.install_steps.pack_forget()
+        self.check_actions.pack_forget()
+        self.volume_hint.pack_forget()
+        if self.endpoint_id is None:
+            title, hint = "cable_multiple", "cable_choose"
+            action, command = "cable_choose_settings", app.show_virtual_sources
+        elif self.endpoint_id == current_id and app.auto_switch_output:
+            title, hint = "cable_configured", "cable_stream"
+            action, command = "cable_done", app.close_cable_guide
+            volume_key = "cable_adjust_software" if app.software_volume else "cable_adjust"
+            self.volume_hint.configure(text=app.tr(volume_key))
+            self.volume_hint.pack(fill="x", pady=(8, 0), after=self.result_text)
+        else:
+            title, hint = "cable_found", "cable_apply_hint"
+            action, command = "cable_apply", self.apply
+
+        self.result_heading.configure(text=app.tr(title))
+        self.result_text.configure(text=app.tr(hint))
+        self.confirm.configure(text=app.tr(action), command=command)
+        self.confirm.pack(fill="x", pady=(12, 0))
+
+    def apply(self):
+        # An endpoint may have changed between detection and confirmation.
+        endpoint_id = self.endpoint_id
+        if endpoint_id and self.app.refresh_sources() and self.endpoint_id == endpoint_id:
+            self.app.use_cable_output(self.devices, endpoint_id)
+
+
 class App:
     def __init__(self):
         self.config = load_config()
@@ -387,7 +563,8 @@ class App:
         self.streaming = False  # start succeeded
         self.testing = 0  # test sounds being played while not streaming
         self.volume_synced = False
-        self.show_settings = False
+        self.cable_guide = None
+        self.show_settings = self.needs_virtual_output() and "--minimized" not in sys.argv
         self.update = None  # a newer release, see newer_release
         self.checking = False  # asking GitHub for one
         self.asked = False  # the question came from a click, so it gets an answer
@@ -518,6 +695,11 @@ class App:
         )
         self.status.pack(pady=(10, 0))
 
+        self.cable_setup_button = ctk.CTkButton(
+            body, text=self.tr("cable_setup"), command=self.open_cable_guide,
+            width=WIDTH, height=34, anchor="w", font=self.font, corner_radius=8,
+            fg_color=FIELD, hover_color=FIELD_HOVER, text_color=TEXT, text_color_disabled=MUTED,
+        )
         self.settings_button = ctk.CTkButton(
             body, command=self.toggle_settings, width=WIDTH, height=26, anchor="w",
             font=self.small, fg_color="transparent", hover_color=FIELD, text_color=MUTED,
@@ -530,9 +712,9 @@ class App:
                                         self.set_audio_mode, WIDTH - LABEL)
         self.audio_mode_box.set(self.tr("virtual_mode" if self.audio_mode == "virtual" else "physical_mode"))
         self.audio_mode_box.pack(side="left")
-        self.audio_mode_hint = ctk.CTkLabel(self.settings,
-            text=self.tr("virtual_mode_hint" if self.audio_mode == "virtual" else "physical_mode_hint"),
-            font=self.small, text_color=MUTED, wraplength=WIDTH - 20, justify="left")
+        self.audio_mode_hint = ctk.CTkLabel(
+            self.settings, text="", font=self.small, text_color=MUTED,
+            wraplength=WIDTH - 20, justify="left")
         self.audio_mode_hint.pack(pady=4)
         row = self.setting_row(self.tr("source"))
         self.source_labels = source_labels(self.sources,
@@ -543,24 +725,27 @@ class App:
         self.refresh_source_button = ctk.CTkButton(self.settings, text=self.tr("refresh_source"),
                                                   command=self.refresh_sources)
         self.refresh_source_button.pack(pady=4)
-        ctk.CTkButton(self.settings, text=self.tr("cable_help"),
-                      command=lambda: webbrowser.open("https://vb-audio.com/Cable/index.htm")).pack(pady=4)
-        ctk.CTkLabel(self.settings, text=self.tr("cable_volume_hint"), font=self.small,
+        self.cable_help_button = ctk.CTkButton(
+            self.settings, text=self.tr("cable_help"), command=self.open_cable_guide,
+            font=self.font, fg_color="transparent", hover_color=FIELD, text_color=LINK,
+        )
+        self.virtual_settings = ctk.CTkFrame(self.settings, fg_color="transparent")
+        ctk.CTkLabel(self.virtual_settings, text=self.tr("cable_volume_hint"), font=self.small,
                      text_color=MUTED, wraplength=WIDTH - 20).pack(pady=4)
-        self.software_volume_box = self.switch(self.settings, self.tr("software_volume"),
+        self.software_volume_box = self.switch(self.virtual_settings, self.tr("software_volume"),
                                                self.software_volume, self.set_software_volume)
         self.software_volume_box.pack(pady=4)
-        ctk.CTkLabel(self.settings, text=self.tr("software_volume_hint"), font=self.small,
+        ctk.CTkLabel(self.virtual_settings, text=self.tr("software_volume_hint"), font=self.small,
                      text_color=MUTED, wraplength=WIDTH - 20, justify="left").pack(pady=4)
-        self.auto_output_box = self.switch(self.settings, self.tr("auto_output"),
+        self.auto_output_box = self.switch(self.virtual_settings, self.tr("auto_output"),
                                            self.auto_switch_output,
                                            self.set_auto_output)
         self.auto_output_box.pack(pady=4)
-        self.restore_disconnect_box = self.switch(self.settings, self.tr("restore_disconnect"),
+        self.restore_disconnect_box = self.switch(self.virtual_settings, self.tr("restore_disconnect"),
                                                   self.restore_on_disconnect,
                                                   lambda value: setattr(self, "restore_on_disconnect", value))
         self.restore_disconnect_box.pack(pady=4)
-        self.communications_box = self.switch(self.settings, self.tr("switch_communications"),
+        self.communications_box = self.switch(self.virtual_settings, self.tr("switch_communications"),
                                                self.switch_communications,
                                                lambda value: setattr(self, "switch_communications", value))
         self.communications_box.pack(pady=4)
@@ -614,6 +799,7 @@ class App:
 
         self.tray.labels = (self.tr("tray_show"), self.tr("tray_quit"))
         self.build_roles()
+        self.update_audio_source_help()
         self.place_settings()
         self.set_status(*self.status_text)
         self.set_controls(not self.running)
@@ -740,6 +926,7 @@ class App:
         state = "normal" if enabled else "disabled"
         for widget in [*self.role_boxes.values(), self.source_box, self.buffer_box,
                        self.audio_mode_box, self.refresh_source_button,
+                       self.cable_setup_button, self.cable_help_button,
                        self.auto_output_box, self.software_volume_box,
                        self.restore_disconnect_box,
                        self.communications_box,
@@ -806,8 +993,67 @@ class App:
         if not self.refresh_sources(preserve=False):
             self.audio_mode = previous
             self.audio_mode_box.set(self.tr("virtual_mode" if previous == "virtual" else "physical_mode"))
-        self.audio_mode_hint.configure(text=self.tr("virtual_mode_hint" if self.audio_mode == "virtual" else "physical_mode_hint"))
         self.set_controls(not self.running)
+
+    def needs_virtual_output(self):
+        return self.audio_mode == "virtual" and not any(
+            endpoint_id is not None and channels > 0 for endpoint_id, _, channels in self.sources
+        )
+
+    def update_audio_source_help(self):
+        needs_cable = self.needs_virtual_output()
+        hint = "physical_mode_hint"
+        if self.audio_mode == "virtual":
+            hint = "cable_setup_hint" if needs_cable else "virtual_mode_hint"
+        self.audio_mode_hint.configure(text=self.tr(hint))
+
+        endpoint_id, _, channels = self.sources[self.source_index]
+        if self.audio_mode == "physical" or endpoint_id is None or channels <= 0:
+            self.cable_setup_button.pack(pady=(0, 6), before=self.settings_button)
+        else:
+            self.cable_setup_button.pack_forget()
+        if self.audio_mode == "virtual":
+            self.cable_help_button.pack(pady=4, before=self.recover_output_button)
+        else:
+            self.cable_help_button.pack_forget()
+        if self.audio_mode == "virtual" and not needs_cable:
+            self.virtual_settings.pack(before=self.recover_output_button)
+        else:
+            self.virtual_settings.pack_forget()
+
+    def open_cable_guide(self):
+        if self.running:
+            return
+        if self.cable_guide is None:
+            self.autostart = 0  # Pause this launch's automatic start during setup.
+            self.cable_guide = CableGuide(self)
+            self.refresh_sources()
+            self.cable_guide.deiconify()
+        self.cable_guide.lift()
+        self.cable_guide.focus_set()
+        self.cable_guide.grab_set()
+
+    def close_cable_guide(self):
+        self.cable_guide.destroy()
+        self.cable_guide = None
+
+    def show_virtual_sources(self):
+        self.close_cable_guide()
+        if self.audio_mode != "virtual":
+            self.audio_mode_box.set(self.tr("virtual_mode"))
+            self.set_audio_mode(self.tr("virtual_mode"))
+        self.show_settings = True
+        self.place_settings()
+
+    def use_cable_output(self, sources, endpoint_id):
+        self.audio_mode = "virtual"
+        self.audio_mode_box.set(self.tr("virtual_mode"))
+        self.auto_switch_output = True
+        self.auto_output_box.select()
+        self.update_sources(sources, endpoint_id)
+        self.set_controls(not self.running)
+        self.remember()
+        save_config(self.config)
 
     def set_auto_output(self, enabled):
         self.auto_switch_output = enabled
@@ -825,15 +1071,23 @@ class App:
             sources = eng.list_sources()
         except Exception as exc:
             self.set_status("source_missing", extra=f"\n{exc}")
+            if self.cable_guide is not None:
+                self.cable_guide.show_missing("cable_detect_failed")
             return False
+        self.update_sources(sources, saved_id)
+        return True
+
+    def update_sources(self, sources, saved_id):
         self.sources = available_sources(sources, self.audio_mode, saved_id, self.tr("source_missing"))
         self.source_index = next((i for i, s in enumerate(self.sources) if s[0] == saved_id), 0)
         self.source_labels = source_labels(self.sources,
             lambda name, channels: self.tr("source_item", name=name, channels=channels))
         self.source_box.configure(values=self.source_labels)
         self.source_box.set(self.source_labels[self.source_index])
+        self.update_audio_source_help()
         self.set_status(*self.status_text)
-        return True
+        if self.cable_guide is not None:
+            self.cable_guide.show_devices(sources)
 
     def set_buffer(self, label):
         self.buffer = BUFFERS[self.buffer_labels.index(label)]
@@ -1016,6 +1270,9 @@ class App:
             return
         source_id, _, channels = self.sources[self.source_index]
         if source_id is None or channels <= 0:
+            if self.audio_mode == "virtual":
+                self.show_settings = True
+                self.place_settings()
             self.set_status("source_missing")
             return
         self.remember()

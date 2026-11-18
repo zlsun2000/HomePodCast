@@ -1,5 +1,5 @@
-# Builds HomePodCast.exe on every push. A tag v<VERSION> also drafts the release
-# with the exe attached; publishing the draft is done by hand.
+# Builds HomePodCast.exe on every push. A tag v<VERSION> can draft a release
+# with the exe attached when the tag has no existing release.
 name: Build
 
 on:
@@ -53,19 +53,6 @@ jobs:
             throw "Tag $env:GITHUB_REF_NAME does not match VERSION $version in app.py"
           }
 
-      - name: Build experimental single installer
-        shell: pwsh
-        run: |
-          $cableZip = Join-Path $env:RUNNER_TEMP 'VBCABLE_Driver_Pack45.zip'
-          Invoke-WebRequest -Uri 'https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip' -OutFile $cableZip
-          .\installer\build_installer.ps1 -CableZip $cableZip
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: HomePodCast-Setup-experimental
-          path: dist/HomePodCast-Setup.exe
-          if-no-files-found: error
-
       - uses: actions/upload-artifact@v7
         with:
           name: HomePodCast
@@ -88,4 +75,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" HomePodCast.exe --draft --verify-tag --title "HomePod Cast $TAG" --generate-notes
+        run: |
+          if gh release view "$TAG" --json tagName >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+          else
+            gh release create "$TAG" HomePodCast.exe --draft --verify-tag --title "HomePod Cast $TAG" --generate-notes
+          fi

@@ -1,8 +1,34 @@
 # HomePod Cast — Guide · 使用须知
 
-## Virtual cable preview · 虚拟声卡预览
+## Portable app · 便携版
 
-Windows 音量可使用以下互斥方式：
+双击 `HomePodCast.exe` 即可运行。下载的是 ZIP 时，请先解压。“电脑输出（同时播放）”使用现有的 Windows 播放设备。只想通过 HomePod 播放时，点击主界面的 **设置仅用 HomePod 播放**。
+
+Double-click `HomePodCast.exe` to run it. If you downloaded a ZIP, extract it first. **Computer output (both)** uses an existing Windows playback device. For HomePod-only playback, select **Set up HomePod-only playback** in the main window.
+
+## VB-CABLE setup · VB-CABLE 安装
+
+### 安装步骤
+
+1. 打开 **设置仅用 HomePod 播放**。如果指引已找到 **CABLE Input**，可以直接进入第 4 步。
+2. 点击 **下载 Windows ZIP**，浏览器会打开标准版 VB-CABLE 的官方 ZIP。也可以从指引打开 [VB-Audio 官网](https://vb-audio.com/Cable/)。
+3. 解压整个 ZIP。64 位 Windows 右键 `VBCABLE_Setup_x64.exe`，选择“以管理员身份运行”，点击 **Install Driver**，重启 Windows。再次打开 HomePodCast，回到指引并点击 **检测 CABLE Input**。
+4. 点击 **使用 CABLE Input 并自动切换**。返回主界面，选择 HomePod 并开始串流。连接就绪后，HomePodCast 会切换 Windows 的默认输出，停止时恢复。
+
+如果重启后仍检测不到，在指引中点 **打开 Windows 声音设置**，确认播放设备 **CABLE Input** 已启用，再检测一次。配置完成后，可从 **设置 → VB-CABLE 安装与使用** 再次打开指引。若要手动路由，关闭 HomePodCast 的自动切换，然后在 Windows 中选择 **CABLE Input** 作为输出。保持录音设备的“侦听此设备”关闭，以免声音送回电脑扬声器。
+
+### Installation steps
+
+1. Open **Set up HomePod-only playback**. If the guide finds **CABLE Input**, go to step 4.
+2. Select **Download Windows ZIP** to open the official package for standard VB-CABLE in your browser. The guide also links to the [VB-Audio website](https://vb-audio.com/Cable/).
+3. Extract the whole ZIP. On 64-bit Windows, right-click `VBCABLE_Setup_x64.exe`, choose **Run as administrator**, and select **Install Driver**. Restart Windows, return to the guide, and select **Detect CABLE Input**.
+4. Select **Use CABLE Input and auto-switch**. Choose a HomePod in the main window and start streaming. HomePodCast switches the Windows default output when the stream is ready and restores it on stop.
+
+If detection still fails after restarting, select **Open Windows Sound settings**, enable the **CABLE Input** playback device, and detect again. After setup, find the guide in **Settings → VB-CABLE setup and use**. To route manually, turn off automatic switching in HomePodCast and select **CABLE Input** as the Windows output. Keep **Listen to this device** off for the recording device to avoid sending audio back to your computer speakers.
+
+### Windows volume · 系统音量
+
+Windows 音量控制当前默认输出，应用的“音箱音量”控制 HomePod。虚拟输出静音或音量为 0 时，应用将采集信号置零。下列两种音量方式选一种。
 
 1. **软件音量（预览）：**以管理员身份运行 `VBCABLE_ControlPanel.exe`，在 Options 取消勾选 **Enable Windows Volume Control**，确认显示 `Volume Control: Disabled`，再在 HomePodCast 设置中启用“软件控制虚拟输出音量”（默认关闭）。
 2. **驱动音量：**以管理员身份运行控制面板并勾选 **Enable Windows Volume Control**，确认显示 `Volume Control: Enabled`；同时关闭应用的“软件控制虚拟输出音量”。此前仅以普通权限临时启用时，可在管理员模式关闭后再启用，以保存设置。
@@ -11,11 +37,13 @@ Windows 音量可使用以下互斥方式：
 
 Choose one method: **Software volume for virtual output** (off by default) requires disabling **Enable Windows Volume Control** in the VB-CABLE control panel run as administrator; alternatively enable the driver option and leave software volume off. Do not enable both: gain may be applied twice. On the tested PC, levels 1–5 yielded silent captured PCM with driver volume enabled but nonzero PCM with it disabled. The low-volume HomePod listening result using software volume remains unverified.
 
-实验安装包附带标准 VB-CABLE，安装后可从开始菜单运行 **Configure HomePodCast Virtual Audio** 配置向导。已有可用驱动会直接复用；缺少驱动时，经确认打开原厂安装界面，重启后再次运行配置向导。安装包仍为预览版，构建和签名说明见 [installer/README.md](../installer/README.md)。
+The Windows slider controls the current default output. The app slider controls the HomePod. The app silences captured virtual audio at zero volume or when muted.
 
-在设置的“音源模式”选择“虚拟输出（HomePod）”，刷新音源并明确选择标准 `CABLE Input`。开启自动切换后，程序在串流就绪时切换普通默认输出，停止时按记录恢复；通信输出保持原设置。也可关闭自动切换，在 Windows 中手动选择同一个 CABLE Input。不要启用录音端“侦听此设备”。全部掉线后停止与恢复为另一个默认关闭的选项；10 秒从程序确认全部掉线后计时。异常退出后可使用设置中的恢复按钮，恢复仍受原设备可用性与用户后续选择限制。应用的“音箱音量”控制 HomePod，Windows 音量控制当前默认输出；虚拟端点静音或音量为 0 时，应用将采集 PCM 置零。标准驱动的名称及两个 Windows 播放端点保持原样。
+### Output recovery · 输出恢复
 
-The experimental installer includes standard VB-CABLE. Run **Configure HomePodCast Virtual Audio** from the Start menu; it reuses a healthy driver or asks before opening the vendor installer. Reboot after driver installation and run the wizard again. Select **Virtual output (HomePod)** and standard **CABLE Input**. Optional automatic routing switches normal default outputs after streaming is ready and conditionally restores them on stop; communication defaults remain unchanged. With manual routing, choose the same endpoint in Windows. Keep recording-device monitoring disabled. Optional all-receivers-offline recovery waits 10 seconds after loss is detected. Use the recovery button after an abnormal exit. Restoration respects device availability and subsequent user choices. The app slider controls HomePod volume; Windows volume controls the default output. Muted or zero-volume virtual PCM is silenced in the app. Windows still shows the vendor's original endpoint names and both playback endpoints.
+“同时切换通信应用输出”可将通话输出也切到虚拟设备。“全部音箱掉线 10 秒后停止并恢复输出”从应用确认全部掉线后开始计时。异常退出后可在设置中恢复上次输出，恢复取决于原设备是否可用以及之后是否手动更改过输出。
+
+You can opt in to switching the communications output and to restoring outputs 10 seconds after the app detects that all receivers are offline. After an abnormal exit, use the recovery button in Settings. Recovery respects subsequent manual switches and device availability.
 
 `HomePodCast Audio` 自有驱动仍是开发原型，虚拟机中已探测 PCM 路径，但原生静音、正式签名和完整运行验收尚未完成，不随应用安装。The own driver remains experimental: VM PCM probes have been performed, but native mute, production signing and full runtime acceptance remain incomplete. It is not bundled; existing device selections are preserved by exact ID. See [driver development notes](../drivers/README.md).
 

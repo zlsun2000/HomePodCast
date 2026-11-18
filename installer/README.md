@@ -1,4 +1,6 @@
-# Experimental single installer
+# Optional legacy installer
+
+The default Build workflow produces the [portable EXE](../docs/GUIDE.md#portable-app--便携版). Keep these manual build instructions for the older bundled installer. The portable app links to VB-Audio for driver setup.
 
 The installer bundles the application and the unmodified standard VB-CABLE Pack45.
 The virtual audio wizard reuses a healthy installation; when the device is absent,
@@ -48,6 +50,4 @@ This path needs verification with the actual certificate and Windows security po
 including any extracted dependencies. No production signing key is included. Application
 signing is separate from Microsoft kernel-driver signing.
 
-CI uploads `HomePodCast-Setup-experimental` as a build artifact. Tag builds still
-attach only the portable application to a **draft** release; the installer is not
-automatically published as a production release.
+Tag builds can attach the portable application to a **draft** when the tag has no existing release.

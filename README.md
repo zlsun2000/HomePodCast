@@ -7,47 +7,54 @@
 **Windows audio → 1, 2 or 4 HomePods, in sync.**<br>
 **把 Windows 声音同步送到 1、2 或 4 台 HomePod。**
 
-[![Latest release](https://img.shields.io/github/v/release/GeoAtom/HomePodCast?label=release)](https://github.com/GeoAtom/HomePodCast/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/GeoAtom/HomePodCast/total)](https://github.com/GeoAtom/HomePodCast/releases)
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-<a href="https://github.com/GeoAtom/HomePodCast/releases/latest/download/HomePodCast.exe"><img src="https://img.shields.io/badge/Download%20for%20Windows-2ea44f?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" width="309"></a>
+<a href="https://github.com/zlsun2000/HomePodCast/releases/latest/download/HomePodCast.exe"><img src="https://img.shields.io/badge/Download%20Windows%20EXE-2ea44f?style=for-the-badge&logo=windows&logoColor=white" alt="Download HomePodCast.exe for Windows" width="309"></a>
 &nbsp;
 <a href="https://www.buymeacoffee.com/geo2026"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="150"></a>
 &nbsp;
 <a href="https://afdian.com/a/geo2026"><img src="docs/afdian-button.png" alt="去爱发电赞助" width="150"></a>
 
-**[📖 Guide · 使用须知](docs/GUIDE.md)**
+**[发布页 · Releases](https://github.com/zlsun2000/HomePodCast/releases)** · **[使用指南 · Guide](docs/GUIDE.md)** · [原项目 · Upstream](https://github.com/GeoAtom/HomePodCast)
 
 </div>
 
-## 虚拟音频预览版
+## 与原版的区别
 
-本分支增加虚拟输出、自动切换和恢复默认播放设备。实验性安装包包含标准 VB-CABLE，配置向导会在需要时请求确认，再打开原厂驱动安装程序；驱动安装后需要重启并再次运行向导。应用内选择“虚拟输出（HomePod）”和标准 **CABLE Input**，即可将默认输出送往 HomePod。明确绑定物理扬声器的应用仍可能从电脑出声。
+本分支沿用双击 EXE 即可运行的流程，以及 1、2 或 4 台 HomePod 的同步串流。下表以 [GeoAtom/HomePodCast v1.2.1](https://github.com/GeoAtom/HomePodCast/releases/tag/v1.2.1) 为对照。
 
-**Windows 音量设置：**以下两种方式选一种使用。Windows 当前默认播放设备须为所选的 CABLE Input；应用中的“音箱音量”另行控制 HomePod 自身音量。
+| 功能 | 原版 v1.2.1 | 本分支 |
+| --- | --- | --- |
+| 播放路径 | 从现有 Windows 播放设备采集。选物理扬声器时，电脑与 HomePod 同播。 | 保留电脑同播模式，新增虚拟输出。跟随 Windows 默认输出的应用可只通过 HomePod 播放。 |
+| 虚拟声卡设置 | 从通用音源列表手动选择设备。 | 主界面提供 VB-CABLE 官方 ZIP 直链、解压安装步骤和 **CABLE Input** 检测。已有驱动可直接使用。 |
+| 切换与恢复 | 在 Windows 声音设置中手动切换默认输出。 | 串流就绪后自动切换，停止时恢复。可选全部音箱掉线后的恢复。 |
+| 音量 | 应用滑块调整 HomePod 音量。 | 虚拟模式支持 Windows 音量、静音和 0 档处理，并提供可选软件音量。应用滑块继续调整 HomePod 音量。 |
 
-1. **软件音量（预览）：**以管理员身份运行安装目录 `VBCABLE` 文件夹中的 `VBCABLE_ControlPanel.exe`，在 **Options → Enable Windows Volume Control** 取消勾选，确认控制面板显示 `Volume Control: Disabled`；然后在 HomePodCast 设置中启用“软件控制虚拟输出音量”（默认关闭）。管理员权限用于保存驱动设置。
-2. **驱动音量：**在上述管理员控制面板中勾选 **Enable Windows Volume Control**，确认显示 `Volume Control: Enabled`；在 HomePodCast 中关闭“软件控制虚拟输出音量”。如果先前仅在非管理员模式临时启用，需在管理员模式中关闭后重新启用以保存状态。
+## 在 Windows 上使用
 
-不要同时启用驱动音量和软件音量，否则可能重复衰减。本机测试发现驱动音量开启时，Windows 1–5 的采集信号为零；关闭后有非零信号。软件音量方案的低音量 HomePod 实际听感仍待验证。
+1. 下载 `HomePodCast.exe` 后双击运行。便携版适用于 Windows 10/11 x64。[下载 EXE](https://github.com/zlsun2000/HomePodCast/releases/latest/download/HomePodCast.exe)
+2. 只想用 HomePod 播放时，在主界面点击 **设置仅用 HomePod 播放**。缺少驱动时，按指引下载并安装标准版 VB-CABLE，重启后回到应用检测 **CABLE Input**。
+3. 点击 **使用 CABLE Input 并自动切换**，选择 HomePod，再点 **开始串流**。
 
-标准 VB-CABLE 会创建 `CABLE Input` 和 `CABLE In 16ch` 两个播放端点；安装程序不会自动禁用或重命名它们。可在 Windows 声音设置中按需禁用 `CABLE In 16ch`；这只影响当前电脑，不会改变安装包或其他用户的设备。
+便携 EXE 未进行代码签名，Windows 智能应用控制可能拦截。手动路由、软件音量和异常退出后的恢复步骤见[使用指南](docs/GUIDE.md)。
 
-该安装包及应用目前未正式签名，Smart App Control 可能阻止运行；驱动签名不会自动使外层应用受信任。详情见[使用指南](docs/GUIDE.md)、[安装包构建说明](installer/README.md)和[当前状态](docs/DEVELOPMENT_STATUS.zh-CN.md)。
+## What this fork adds
 
-## Virtual audio preview
+This fork builds on [GeoAtom/HomePodCast v1.2.1](https://github.com/GeoAtom/HomePodCast/releases/tag/v1.2.1) and keeps the portable EXE and synced streaming to one, two, or four HomePods.
 
-This fork adds virtual-output routing and an experimental installer bundling standard VB-CABLE. Install the driver through the setup wizard, reboot, and run the wizard again. Select **Virtual output (HomePod)** and **CABLE Input** in the app. The preview builds are available as artifacts in [this fork's Build workflow](https://github.com/zlsun2000/HomePodCast/actions/workflows/build.yml); the download buttons above refer to the original upstream release and do not include these changes.
+- **HomePod-only playback.** The upstream app captures an existing Windows output. This fork adds a virtual-output mode for audio that follows the Windows default device, alongside the existing computer output mode.
+- **Guided VB-CABLE setup.** The main window links directly to the standard Windows ZIP, shows installation and restart steps, and detects an available **CABLE Input**.
+- **Automatic switching and recovery.** Windows can switch its default output when streaming is ready and restore the previous output on stop. Recovery when all HomePods disconnect is optional.
+- **Windows volume and mute.** Virtual mode handles system volume, mute, and zero volume, with optional software volume. The app slider controls the HomePod speaker volume.
 
-Choose one Windows-volume method: for the preview **Software volume for virtual output** setting (off by default), run `VBCABLE_ControlPanel.exe` from the installation's `VBCABLE` folder as administrator and disable **Options → Enable Windows Volume Control**, then enable software volume in the app. Alternatively, enable the driver option and leave software volume off. Using both can apply volume twice. On the tested PC, levels 1–5 produced silent captured PCM with driver volume enabled and nonzero PCM when disabled; low-volume listening through HomePod with software volume still needs verification. Windows volume controls the default output; the app's speaker slider controls the HomePod itself. The vendor driver exposes two playback endpoints; disabling `CABLE In 16ch` in Windows is an optional, per-PC setting, not an installer action. Current application and installer builds are unsigned and may be blocked by Smart App Control. See the [guide](docs/GUIDE.md) and [installer instructions](installer/README.md).
-
-![How to use HomePod Cast](docs/usage-en.png)
+Download and double-click `HomePodCast.exe` on Windows 10 or 11 x64. Select **Set up HomePod-only playback** if you want to use VB-CABLE. The EXE is unsigned. [Download EXE](https://github.com/zlsun2000/HomePodCast/releases/latest/download/HomePodCast.exe) · [Setup guide](docs/GUIDE.md)
 
 <details>
-<summary><b>中文使用方法</b></summary>
+<summary><b>原版操作截图 · Upstream screenshots</b></summary>
 
-![HomePod Cast 使用方法](docs/usage-zh.png)
+![Upstream HomePod Cast usage in English](docs/usage-en.png)
+
+![原版 HomePod Cast 中文使用方法](docs/usage-zh.png)
 
 </details>
